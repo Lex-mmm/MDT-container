@@ -9,7 +9,7 @@
 <body>
     <h1>Simulation Manager</h1>
     <h2>Start a New Simulation</h2>
-    <form action="/start_simulation" method="post">
+    <form action="https://rsc.ds.umcutrecht.nl/mdt_tryout/start_simulation" method="post">
         Patient ID: <input type="text" name="patient_id" required><br>
         Parameter File Path: <input type="text" name="param_file" value="parameters.json"><br>
         <button type="submit">Start Simulation</button>
@@ -20,10 +20,10 @@
         {% for patient in patients %}
             <li>
                 Patient ID: {{ patient }}
-                <form action="/stop_simulation/{{ patient }}" method="post" style="display:inline;">
+                <form action="https://rsc.ds.umcutrecht.nl/mdt_tryout/stop_simulation/{{ patient }}" method="post" style="display:inline;">
                     <button type="submit">Stop Simulation</button>
                 </form>
-                <a href="/patient/{{ patient }}">View Data</a>
+                <a href="https://rsc.ds.umcutrecht.nl/mdt_tryout/patient/{{ patient }}">View Data</a>
             </li>
         {% endfor %}
     </ul>
