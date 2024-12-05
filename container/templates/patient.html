@@ -14,7 +14,7 @@
 
     <script>
         const patientId = "{{ patient_id }}";
-        const socket = io();
+        const socket = io("rs://rsc.ds.umcutrecht.nl/mdt_tryout:5000");
 
         socket.on('connect', () => {
             console.log('Connected to server');

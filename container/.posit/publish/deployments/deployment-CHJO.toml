@@ -10,9 +10,9 @@ id = 'a3eb1e58-9bd3-48df-953f-f436476905a2'
 dashboard_url = 'https://rsc.ds.umcutrecht.nl/connect/#/apps/a3eb1e58-9bd3-48df-953f-f436476905a2'
 direct_url = 'https://rsc.ds.umcutrecht.nl/content/a3eb1e58-9bd3-48df-953f-f436476905a2/'
 logs_url = 'https://rsc.ds.umcutrecht.nl/connect/#/apps/a3eb1e58-9bd3-48df-953f-f436476905a2/logs'
-deployed_at = '2024-12-05T21:46:43+01:00'
-bundle_id = '123132'
-bundle_url = 'https://rsc.ds.umcutrecht.nl/__api__/v1/content/a3eb1e58-9bd3-48df-953f-f436476905a2/bundles/123132/download'
+deployed_at = '2024-12-05T22:06:46+01:00'
+bundle_id = '123136'
+bundle_url = 'https://rsc.ds.umcutrecht.nl/__api__/v1/content/a3eb1e58-9bd3-48df-953f-f436476905a2/bundles/123136/download'
 files = [
   '.posit/publish/MDT_tryout-H9IH.toml',
   '.posit/publish/deployments/deployment-CHJO.toml',
@@ -41,6 +41,11 @@ requirements = [
   'requests==2.32.3',
   'scipy==1.14.0'
 ]
+
+[deployment_error]
+code = 'deployedContentNotRunning'
+message = 'Deployed content does not seem to be running. See the logs in Connect for details.'
+operation = 'publish/validateDeployment'
 
 [configuration]
 '$schema' = 'https://cdn.posit.co/publisher/schemas/posit-publishing-schema-v3.json'

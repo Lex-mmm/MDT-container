@@ -2,12 +2,16 @@
 
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, emit, join_room
+import socketio
 import threading
+import eventlet
 from digital_twin_model_v5 import DigitalTwinModel  # Import your updated class
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-socketio = SocketIO(app)
+#socketio = SocketIO(app)
 
+socketio_app = socketio.Server(cors_allowed_origins="*") # Allow CORS from all origins
+socket = socketio.WSGIApp(socketio_app)
 # Dictionary to store instances of DigitalTwinModel keyed by patient_id
 twin_instances = {}
 
@@ -59,17 +63,17 @@ def view_patient(patient_id):
 
 
 # Socket.IO event handlers
-@socketio.on('connect')
+@socketio_app.event('connect')
 def handle_connect():
     print('Client connected')
 
 
-@socketio.on('disconnect')
+@socketio_app.event('disconnect')
 def handle_disconnect():
     print('Client disconnected')
 
 
-@socketio.on('join')
+@socketio_app.event('join')
 def on_join(data):
     patient_id = data
     join_room(patient_id)
@@ -79,9 +83,10 @@ def on_join(data):
 # Function to emit data from the DigitalTwinModel to the client
 def emit_patient_data(patient_id, data):
     data['patient_id'] = patient_id
-    socketio.emit('patient_data', data, room=patient_id)
+    socketio_app.emit('patient_data', data, room=patient_id)
 
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5001)
+    eventlet.wsgi.server(eventlet.list(("https://rsc.ds.umcutrecht.nl/mdt_tryout", 5000)), socket)
+    #socketio.run(app)
 
