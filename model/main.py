@@ -22,7 +22,7 @@ def start_simulation():
     """Start simulation for a specific patient."""
     patient_id = request.form.get("patient_id")
     param_file = request.form.get("param_file", "parameters.json")
-    
+
     if not patient_id:
         return jsonify({"error": "Missing patient ID"}), 400
     if patient_id not in twin_instances:
@@ -30,7 +30,7 @@ def start_simulation():
         twin_instances[patient_id] = DigitalTwinModel(patient_id, param_file, data_callback=emit_patient_data)
     model = twin_instances[patient_id]
     if not model.running:
-        # Start the simulation in a new thread
+        # Start the simulation in a new thread 
         threading.Thread(target=model.start_simulation).start()
         return jsonify({"status": f"Simulation started for patient {patient_id}"})
     else:
