@@ -1,5 +1,4 @@
 <!-- templates/patient.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,24 +10,20 @@
     <h1>Patient {{ patient_id }}</h1>
     <p>Heart Rate: <span id="heart-rate">0</span></p>
     <p>Simulation Time: <span id="simulation-time">0</span></p>
-
     <script>
         const patientId = "{{ patient_id }}";
-        const socket = io("rs://rsc.ds.umcutrecht.nl/mdt_tryout:5000");
-
+        const socket = io();
         socket.on('connect', () => {
             console.log('Connected to server');
             // Join a room specific to this patient
             socket.emit('join', patientId);
         });
-
         socket.on('patient_data', (data) => {
             if (data.patient_id === patientId) {
                 document.getElementById('heart-rate').textContent = data.heart_rate.toFixed(2);
                 document.getElementById('simulation-time').textContent = data.time.toFixed(2);
             }
         });
-
         socket.on('disconnect', () => {
             console.log('Disconnected from server');
         });

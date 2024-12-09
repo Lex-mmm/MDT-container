@@ -9,7 +9,7 @@ import threading
 
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="parameters.json", data_callback=None):
+    def __init__(self, patient_id, param_file="blueprints/parameters.json", data_callback=None):
         self.patient_id = patient_id
         self.running = False
         self.t = 0
@@ -35,7 +35,7 @@ class DigitalTwinModel:
         """
         try:
             print(f"Loading parameter file: {param_file}")
-            with open(param_file, "r") as file:
+            with open("model/blueprints/" + param_file, "r") as file:
                 config = json.load(file)
             self.params = config.get("params", {})
             self.initial_conditions = config.get("initial_conditions", {})
