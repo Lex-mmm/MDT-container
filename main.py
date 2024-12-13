@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, emit, join_room
 import threading
-from digital_twin_model_v5 import DigitalTwinModel  # Import your updated class
+from digital_twin_model import DigitalTwinModel  # Import your updated class
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 socketio = SocketIO(app)

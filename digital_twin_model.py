@@ -524,15 +524,27 @@ class DigitalTwinModel:
             self.HR_store[self.buffer_index] = HR
             self.buffer_index = (self.buffer_index + 1) % self.window_size
 
+
+
             # Print heart rate at intervals
             if self.t - last_print_time >= self.print_interval:
                 print(f"Heart Rate at time {self.t:.2f}s for patient {self.patient_id}: {HR}")
                 last_print_time = self.t
 
-            # Emit data to the client every second
-            if self.t - last_emit_time >= 1.0:
+            # Emit data to the client every 5 seconds
+            if self.t - last_emit_time >= 5.0:
+                # Calculate SaO2
+                p_a_O2 = self.current_state[18]  # CO2 partial pressure
+                CaO2 = (self.params['K_O2'] * np.power((1 - np.exp(-self.params['k_O2'] * min(p_a_O2, 700))), 2)) * 100
+                Sa_O2 = ((CaO2 - p_a_O2 * 0.003 / 100) / (self.misc_constants['Hgb'] * 1.34)) * 100
+
                 data = {
                     "heart_rate": self.current_heart_rate,
+                    "SaO2": Sa_O2,
+                    "MAP": (np.max(self.P_store[0])+np.min(self.P_store)*2)/3,
+                    "CO": np.trapz(self.F_store[0], dx=self.dt),
+                    "RR": self.respiratory_control_params['RR_0'] + self.current_state[23],
+                    "etCO2": self.current_state[17],
                     "time": self.t,
                     # Add other monitored values here
                 }
