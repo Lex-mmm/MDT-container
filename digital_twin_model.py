@@ -286,7 +286,12 @@ class DigitalTwinModel:
         # Compute heart rate
         HR = self.cardio_control_params['HR_n'] - y[26]  # Delta_HR_c is y[26]
 
-        return P, F, HR
+        # Compute SaO2
+        p_a_O2 = y[18]
+        CaO2 = (self.params['K_O2'] * np.power((1 - np.exp(-self.params['k_O2'] * min(p_a_O2, 700))), 2)) * 100
+        Sa_O2 = np.round(((CaO2 - p_a_O2 * 0.003 / 100) / (self.misc_constants['Hgb'] * 1.34)) * 100)
+
+        return P, F, HR, Sa_O2
 
     def ventilator_pressure(self, t):
         """Ventilator pressure as a function of time (simple square wave for demonstration)."""
@@ -358,6 +363,8 @@ class DigitalTwinModel:
             FI_CO2 = self.gas_exchange_params['FI_CO2']
             Pmus_dt = 0
 
+        #print(RR, Pmus_min, FI_O2, FI_CO2)
+
         # Calculate the pressures for cardiovascular model
         P = np.zeros(10)
         P[0] = self.elastance[0, 0] * (V[0] - self.uvolume[0]) + mechanical_states[4]
@@ -385,12 +392,12 @@ class DigitalTwinModel:
         F[9] = (P[9] - P[0]) / self.resistance[9] if P[9] - P[0] > 0 else 0
 
         # Store values in the circular buffer
-        self.P_store[:, self.buffer_index] = P
-        self.F_store[:, self.buffer_index] = F
-        self.HR_store[self.buffer_index] = HR
+        #self.P_store[:, self.buffer_index] = P
+        #self.F_store[:, self.buffer_index] = F
+        #self.HR_store[self.buffer_index] = HR
 
         # Update buffer index
-        self.buffer_index = (self.buffer_index + 1) % self.window_size
+        #self.buffer_index = (self.buffer_index + 1) % self.window_size
 
         # Calculate the derivatives of volumes for cardiovascular model
         dVdt = np.zeros(10)
@@ -407,15 +414,16 @@ class DigitalTwinModel:
 
         # Lung cardio to respi model by exchanging the Cardiac output with the lung model
         # Calculate CO as area under the curve of F[0]
-        cycle_length = 60 / HR
-        cycle_points = int(cycle_length / self.dt)
+        #cycle_length = 60 / HR
+        #cycle_points = int(cycle_length / self.dt)
         idx = self.buffer_index  # Current buffer index
-        if idx >= cycle_points:
-            F0_cycle = self.F_store[0, idx - cycle_points:idx]
-            CO = np.trapz(F0_cycle, dx=self.dt)   # in ml/sec
-        else:
-            CO = self.bloodflows['CO']  # Initial values
+        #if idx >= cycle_points:
+        #    F0_cycle = self.F_store[0, idx - cycle_points:idx]
+        #    CO = np.trapz(F0_cycle, dx=self.dt)   # in ml/sec
+        #else:
+        #    CO = self.bloodflows['CO']  # Initial values
 
+        CO = self.bloodflows['CO']
         q_p = CO
         sh = 0.02  # Shunt fraction
         q_Bv = 0.2 * CO
@@ -448,19 +456,18 @@ class DigitalTwinModel:
 
         # Determine inspiration or expiration
         if (self.misc_constants['MV'] == 1 and P_ao > 6 * 0.735) or (self.misc_constants['MV'] == 0 and mechanical_states[0] < 0):
-            # Inspiration
-            dFD_O2_dt = Vdot_l * (FI_O2 - FD_O2) / self.gas_exchange_params['V_D']
-            dFD_CO2_dt = Vdot_l * (FI_CO2 - FD_CO2) / self.gas_exchange_params['V_D']
+            dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.gas_exchange_params['V_D'] * 1000)
+            dFD_CO2_dt = Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (self.gas_exchange_params['V_D'] * 1000)
 
-            dp_a_CO2 = (863 * q_p * (1 - sh) * (c_v_CO2 - c_a_CO2) + Vdot_A * (p_D_CO2 - p_a_CO2)) / self.gas_exchange_params['V_A']
-            dp_a_O2 = (863 * q_p * (1 - sh) * (c_v_O2 - c_a_O2) + Vdot_A * (p_D_O2 - p_a_O2)) / self.gas_exchange_params['V_A']
+            dp_a_CO2 = (863 * q_p * (1 - sh) * (c_v_CO2 - c_a_CO2) + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)) / (self.gas_exchange_params['V_A'] * 1000)
+            dp_a_O2 = (863 * q_p * (1 - sh) * (c_v_O2 - c_a_O2) + Vdot_A * 1000 * (p_D_O2 - p_a_O2)) / (self.gas_exchange_params['V_A'] * 1000)
         else:
             # Expiration
-            dFD_O2_dt = Vdot_A * (FD_O2 - FA_O2) / self.gas_exchange_params['V_D']
-            dFD_CO2_dt = Vdot_A * (FD_CO2 - FA_CO2) / self.gas_exchange_params['V_D']
+            dFD_O2_dt = Vdot_A * 1000 * (FD_O2 - FA_O2) / (self.gas_exchange_params['V_D'] * 1000)
+            dFD_CO2_dt = Vdot_A * 1000 * (FD_CO2 - FA_CO2) / (self.gas_exchange_params['V_D'] * 1000)
 
-            dp_a_CO2 = 863 * q_p * (1 - sh) * (c_v_CO2 - c_a_CO2) / self.gas_exchange_params['V_A']
-            dp_a_O2 = 863 * q_p * (1 - sh) * (c_v_O2 - c_a_O2) / self.gas_exchange_params['V_A']
+            dp_a_CO2 = 863 * q_p * (1 - self.bloodflows['sh']) * (c_v_CO2 - c_a_CO2) / (self.gas_exchange_params['V_A'] * 1000)
+            dp_a_O2 = 863 * q_p * (1 - self.bloodflows['sh']) * (c_v_O2 - c_a_O2) / (self.gas_exchange_params['V_A'] * 1000)
 
         # The systemic tissue compartment
         dc_Stis_CO2 = (self.params['M_S_CO2'] - self.gas_exchange_params['D_S_CO2'] * (c_Stis_CO2 - c_Scap_CO2)) / self.params['V_Stis_CO2']
@@ -486,7 +493,7 @@ class DigitalTwinModel:
                 dFD_O2_dt,
                 dFD_CO2_dt,
                 dp_a_CO2,
-                dp_a_O2,
+                dp_a_O2,  
                 dc_Stis_CO2,
                 dc_Scap_CO2,
                 dc_Stis_O2,
@@ -515,35 +522,30 @@ class DigitalTwinModel:
             self.current_state = sol.y[:, -1]  # Update state to the latest solution
 
             # Compute variables at the latest time point
-            P, F, HR = self.compute_variables(sol.t[-1], self.current_state)
+            P, F, HR, Sa_O2 = self.compute_variables(sol.t[-1], self.current_state)
             self.current_heart_rate = HR  # Update monitored value
+            self.current_SaO2 = Sa_O2  # Update monitored value
 
             # Update buffer index
-            self.P_store[:, self.buffer_index] = P
+            self.P_store[:, self.buffer_index] = P[0]
             self.F_store[:, self.buffer_index] = F
             self.HR_store[self.buffer_index] = HR
-            self.buffer_index = (self.buffer_index + 1) % self.window_size
+            self.buffer_index = (self.buffer_index + 1) % 2000
 
-
-
+            #print(self.buffer_index)
+            #print(self.P_store[0])
             # Print heart rate at intervals
             if self.t - last_print_time >= self.print_interval:
-                print(f"Heart Rate at time {self.t:.2f}s for patient {self.patient_id}: {HR}")
+                print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
                 last_print_time = self.t
 
             # Emit data to the client every 5 seconds
             if self.t - last_emit_time >= 5.0:
-                # Calculate SaO2
-                p_a_O2 = self.current_state[18]  # CO2 partial pressure
-                CaO2 = (self.params['K_O2'] * np.power((1 - np.exp(-self.params['k_O2'] * min(p_a_O2, 700))), 2)) * 100
-                Sa_O2 = ((CaO2 - p_a_O2 * 0.003 / 100) / (self.misc_constants['Hgb'] * 1.34)) * 100
-
                 data = {
                     "heart_rate": self.current_heart_rate,
                     "SaO2": Sa_O2,
-                    "MAP": (np.max(self.P_store[0])+np.min(self.P_store)*2)/3,
-                    "CO": np.trapz(self.F_store[0], dx=self.dt),
-                    "RR": self.respiratory_control_params['RR_0'] + self.current_state[23],
+                    "MAP": np.round((np.mean(self.P_store))),
+                    "RR": np.round(self.respiratory_control_params['RR_0'] + self.current_state[23]),
                     "etCO2": self.current_state[17],
                     "time": self.t,
                     # Add other monitored values here
