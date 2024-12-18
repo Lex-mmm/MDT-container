@@ -1,39 +1,164 @@
-<!-- templates/patient.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Patient {{ patient_id }}</title>
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .data-point { font-size: 18px; margin: 10px 0; }
+        .chart-container { margin-top: 20px; }
+        .alarm-container, .alarm-log {
+            margin-top: 20px;
+            padding: 10px;
+            border: 2px solid red;
+            background-color: #ffe5e5;
+            color: red;
+            font-weight: bold;
+        }
+        .threshold-inputs {
+            margin-top: 20px;
+        }
+        .threshold-inputs label {
+            display: inline-block;
+            width: 150px;
+            margin-right: 10px;
+        }
+    </style>
 </head>
 <body>
     <h1>Patient {{ patient_id }}</h1>
-    <p>Heart Rate: <span id="heart-rate">0</span></p>
-    <p>SaO2: <span id="sao2">0</span></p>
-    <p>MAP: <span id="map">0</span></p>
-    <p>RR: <span id="rr">0</span></p>
-    <p>etCO2: <span id="etco2">0</span></p>
-    <p>Simulation Time: <span id="simulation-time">0</span></p>
+    <div class="data-point">Heart Rate: <span id="heart-rate">0</span></div>
+    <div class="data-point">SaO2: <span id="sao2">0</span></div>
+    <div class="data-point">MAP: <span id="map">0</span></div>
+    <div class="data-point">RR: <span id="rr">0</span></div>
+    <div class="data-point">etCO2: <span id="etco2">0</span></div>
+    <div class="data-point">Simulation Time: <span id="simulation-time">0</span></div>
+
+    <div class="threshold-inputs">
+        <h3>Set Thresholds</h3>
+        <label>Heart Rate High: <input type="number" id="hr-high" value="120"></label>
+        <label>Heart Rate Low: <input type="number" id="hr-low" value="40"></label><br>
+        <label>SaO2 Low: <input type="number" id="sao2-low" value="90"></label><br>
+        <label>MAP High: <input type="number" id="map-high" value="120"></label>
+        <label>MAP Low: <input type="number" id="map-low" value="60"></label><br>
+        <label>RR High: <input type="number" id="rr-high" value="30"></label>
+        <label>RR Low: <input type="number" id="rr-low" value="10"></label><br>
+        <label>etCO2 High: <input type="number" id="etco2-high" value="50"></label>
+        <label>etCO2 Low: <input type="number" id="etco2-low" value="30"></label>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="patientChart" width="800" height="400"></canvas>
+    </div>
+
+    <div class="alarm-container" id="alarm-container">
+        <p>No active alarms</p>
+    </div>
+
+    <div class="alarm-log" id="alarm-log">
+        <h3>Alarm Log</h3>
+        <ul id="alarm-log-list"></ul>
+    </div>
 
     <script>
         const patientId = "{{ patient_id }}";
         const socket = io();
 
+        const alarmLog = document.getElementById('alarm-log-list');
+        const alarmContainer = document.getElementById('alarm-container');
+
+        // Chart.js setup
+        const ctx = document.getElementById('patientChart').getContext('2d');
+        const patientChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Heart Rate', data: [], borderColor: 'red', fill: false },
+                    { label: 'SaO2', data: [], borderColor: 'blue', fill: false },
+                    { label: 'MAP', data: [], borderColor: 'green', fill: false },
+                    { label: 'RR', data: [], borderColor: 'orange', fill: false },
+                    { label: 'etCO2', data: [], borderColor: 'purple', fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { type: 'time', time: { unit: 'second', tooltipFormat: 'HH:mm:ss' }, title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Value' } }
+                },
+                elements: { point: { radius: 2 } }
+            }
+        });
+
+        // Dynamic thresholds
+        const thresholds = () => ({
+            heart_rate: { high: parseFloat(document.getElementById('hr-high').value), low: parseFloat(document.getElementById('hr-low').value) },
+            SaO2: { low: parseFloat(document.getElementById('sao2-low').value) },
+            MAP: { high: parseFloat(document.getElementById('map-high').value), low: parseFloat(document.getElementById('map-low').value) },
+            RR: { high: parseFloat(document.getElementById('rr-high').value), low: parseFloat(document.getElementById('rr-low').value) },
+            etCO2: { high: parseFloat(document.getElementById('etco2-high').value), low: parseFloat(document.getElementById('etco2-low').value) }
+        });
+
+        function logAlarm(message) {
+            const now = new Date().toLocaleTimeString();
+            alarmLog.innerHTML += `<li>[${now}] ${message}</li>`;
+            alarmContainer.innerHTML = `<p>${message}</p>`;
+        }
+
         socket.on('connect', () => {
             console.log('Connected to server');
-            // Join a room specific to this patient
             socket.emit('join', patientId);
         });
 
         socket.on('patient_data', (data) => {
             if (data.patient_id === patientId) {
+                // Update DOM
                 document.getElementById('heart-rate').textContent = data.heart_rate.toFixed(2);
                 document.getElementById('sao2').textContent = data.SaO2.toFixed(2);
                 document.getElementById('map').textContent = data.MAP.toFixed(2);
                 document.getElementById('rr').textContent = data.RR.toFixed(2);
                 document.getElementById('etco2').textContent = data.etCO2.toFixed(2);
                 document.getElementById('simulation-time').textContent = data.time.toFixed(2);
+
+                const currentTime = new Date(data.time * 1000);
+
+                // Update Chart
+                patientChart.data.labels.push(currentTime);
+                patientChart.data.datasets[0].data.push({ x: currentTime, y: data.heart_rate });
+                patientChart.data.datasets[1].data.push({ x: currentTime, y: data.SaO2 });
+                patientChart.data.datasets[2].data.push({ x: currentTime, y: data.MAP });
+                patientChart.data.datasets[3].data.push({ x: currentTime, y: data.RR });
+                patientChart.data.datasets[4].data.push({ x: currentTime, y: data.etCO2 });
+
+                // Remove old data
+                const maxTime = 5 * 60 * 1000;
+                while (patientChart.data.labels.length > 0 && (currentTime - patientChart.data.labels[0]) > maxTime) {
+                    patientChart.data.labels.shift();
+                    patientChart.data.datasets.forEach(dataset => dataset.data.shift());
+                }
+                patientChart.update();
+
+                // Check thresholds
+                const threshold = thresholds();
+                if (data.heart_rate > threshold.heart_rate.high) logAlarm("Heart Rate too high!");
+                if (data.heart_rate < threshold.heart_rate.low) logAlarm("Heart Rate too low!");
+                if (data.SaO2 < threshold.SaO2.low) logAlarm("SaO2 too low!");
+                if (data.MAP > threshold.MAP.high) logAlarm("MAP too high!");
+                if (data.MAP < threshold.MAP.low) logAlarm("MAP too low!");
+                if (data.RR > threshold.RR.high) logAlarm("Respiratory Rate too high!");
+                if (data.RR < threshold.RR.low) logAlarm("Respiratory Rate too low!");
+                if (data.etCO2 > threshold.etCO2.high) logAlarm("etCO2 too high!");
+                if (data.etCO2 < threshold.etCO2.low) logAlarm("etCO2 too low!");
             }
         });
 

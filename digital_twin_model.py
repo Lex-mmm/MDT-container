@@ -539,8 +539,8 @@ class DigitalTwinModel:
                 print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
                 last_print_time = self.t
 
-            # Emit data to the client every 5 seconds
-            if self.t - last_emit_time >= 5.0:
+            # Emit data to the client every 1 seconds
+            if self.t - last_emit_time >= 1.0:
                 data = {
                     "heart_rate": self.current_heart_rate,
                     "SaO2": Sa_O2,
