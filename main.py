@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
@@ -6,25 +6,33 @@ from digital_twin_model import DigitalTwinModel  # Import your updated class
 app = Flask(__name__, template_folder='templates', static_folder='static')
 socketio = SocketIO(app)
 
+# A global dictionary to store the resources and settings
+resources = {
+    'residents': 0,
+    'nurses': 0,
+    'physicians': 0,
+    'other_staff': 0,
+    'setting': 'NICU'  # Default setting
+}
+
 # Dictionary to store instances of DigitalTwinModel keyed by patient_id
 twin_instances = {}
 
 def emit_patient_data(patient_id, data):
     """Emit patient data to the client."""
-    print(f"Emitting data for patient {patient_id}: {data}")  # Debugging line
     socketio.emit('patient_data', {'patient_id': patient_id, **data}, room=patient_id)
 
 @app.route('/')
 def home():
     """Home page displaying the list of patients."""
     patient_list = list(twin_instances.keys())
-    return render_template('index.html', patients=patient_list)
+    return render_template('index.html', patients=patient_list, resources=resources)
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():
     """Start simulation for a specific patient."""
     patient_id = request.form.get("patient_id")
-    param_file = request.form.get("param_file", "parameters.json")
+    param_file = request.form.get("param_file", "sepsis.json")
     if not patient_id:
         return jsonify({"error": "Missing patient ID"}), 400
 
@@ -55,6 +63,18 @@ def view_patient(patient_id):
     if patient_id not in twin_instances:
         return f"Patient {patient_id} not found.", 404
     return render_template('patient.html', patient_id=patient_id)
+
+@app.route("/set_resources", methods=["POST"])
+def set_resources():
+    """Update healthcare resources and setting."""
+    resources['residents'] = int(request.form.get("residents", 0))
+    resources['nurses'] = int(request.form.get("nurses", 0))
+    resources['physicians'] = int(request.form.get("physicians", 0))
+    resources['other_staff'] = int(request.form.get("other_staff", 0))
+    resources['setting'] = request.form.get("setting", "NICU")  # Default to NICU if not provided
+
+    print("Updated Resources and Setting:", resources)  # Debugging
+    return redirect(url_for("home"))
 
 # Socket.IO event handlers
 @socketio.on('connect')

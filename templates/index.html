@@ -1,17 +1,92 @@
-<!-- templates/index.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Simulation Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .image-container img {
+            max-height: 100px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Simulation Manager</h1>
+    <div class="image-container">
+        <img src="{{ url_for('static', filename='images/WKZ-Logo.jpeg') }}" alt="Wilhelmina Kinderziekenhuis Logo">
+        <img src="{{ url_for('static', filename='images/SASICU-Logo.png') }}" alt="SASICU Logo">
+    </div>
+
+    <h1>SASICU virtual ICU ward - Simulation Manager</h1>
+    <h2>Set Healthcare Resources</h2>
+    <form action="/set_resources" method="post">
+        <label for="residents">Residents:</label>
+        <input type="number" id="residents" name="residents" value="{{ resources.residents }}" min="0" required>
+
+        <label for="nurses">Nurses:</label>
+        <input type="number" id="nurses" name="nurses" value="{{ resources.nurses }}" min="0" required>
+
+        <label for="physicians">Physicians:</label>
+        <input type="number" id="physicians" name="physicians" value="{{ resources.physicians }}" min="0" required>
+
+        <label for="other_staff">Other Staff:</label>
+        <input type="number" id="other_staff" name="other_staff" value="{{ resources.other_staff }}" min="0" required>
+
+        <label for="setting">Setting:</label>
+        <select id="setting" name="setting">
+            <option value="NICU" {% if resources.setting == 'NICU' %}selected{% endif %}>NICU</option>
+            <option value="PICU" {% if resources.setting == 'PICU' %}selected{% endif %}>PICU</option>
+            <option value="aICU" {% if resources.setting == 'aICU' %}selected{% endif %}>aICU</option>
+        </select>
+
+        <button type="submit">Set Resources</button>
+    </form>
+
     <h2>Start a New Simulation</h2>
     <form action="/start_simulation" method="post">
-        Patient ID: <input type="text" name="patient_id" required><br>
-        Parameter File Path: <input type="text" name="param_file" value="parameters.json"><br>
+        <label for="patient_id">Patient ID:</label>
+        <input type="text" id="patient_id" name="patient_id" required>
+
+        <label for="param_file">Parameter File Path:</label>
+        <input type="text" id="param_file" name="param_file" value="parameters.json">
+
         <button type="submit">Start Simulation</button>
     </form>
 

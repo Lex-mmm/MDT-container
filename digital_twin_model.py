@@ -184,6 +184,10 @@ class DigitalTwinModel:
         # Initialize blood volumes based on unstressed volumes
         TBV = self.misc_constants.get('TBV', 5000)
         state[:10] = TBV * (self.uvolume / np.sum(self.uvolume))
+        # try to adjust the initial volumes
+        state[0]=state[0]+200
+        state[1]=state[1]+100
+        state[2]=state[2]+100   
         # Initialize mechanical states (indices 10 to 14)
         state[10:15] = np.zeros(5)  # Adjust initial values if necessary
         # Initialize other states as before
@@ -349,9 +353,9 @@ class DigitalTwinModel:
 
         if self.misc_constants['MV'] == 0:
             P_ao = 0
-            RR = self.respiratory_control_params['RR_0'] + Delta_RR_c
+            self.RR = self.respiratory_control_params['RR_0'] + Delta_RR_c
             Pmus_min = self.respiratory_control_params['Pmus_0'] + Delta_Pmus_c
-            driver = self.input_function(t, RR, Pmus_min)
+            driver = self.input_function(t, self.RR, Pmus_min)
             Pmus_dt = driver[1]
             FI_O2 = self.gas_exchange_params['FI_O2']
             FI_CO2 = self.gas_exchange_params['FI_CO2']
@@ -523,7 +527,7 @@ class DigitalTwinModel:
 
             # Compute variables at the latest time point
             P, F, HR, Sa_O2 = self.compute_variables(sol.t[-1], self.current_state)
-            self.current_heart_rate = HR  # Update monitored value
+            self.current_heart_rate = self.HR  # Update monitored value
             self.current_SaO2 = Sa_O2  # Update monitored value
 
             # Update buffer index
@@ -545,7 +549,7 @@ class DigitalTwinModel:
                     "heart_rate": self.current_heart_rate,
                     "SaO2": Sa_O2,
                     "MAP": np.round((np.mean(self.P_store))),
-                    "RR": np.round(self.respiratory_control_params['RR_0'] + self.current_state[23]),
+                    "RR": self.RR,
                     "etCO2": self.current_state[17],
                     "time": self.t,
                     # Add other monitored values here

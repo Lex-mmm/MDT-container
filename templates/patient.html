@@ -16,13 +16,19 @@
         h1 { color: #333; }
         .data-point { font-size: 18px; margin: 10px 0; }
         .chart-container { margin-top: 20px; }
-        .alarm-container, .alarm-log {
+        .alarm-container {
             margin-top: 20px;
             padding: 10px;
             border: 2px solid red;
             background-color: #ffe5e5;
             color: red;
             font-weight: bold;
+        }
+        .alarm-log {
+            margin-top: 20px;
+            padding: 10px;
+            border: 2px solid #ccc;
+            background-color: #f9f9f9;
         }
         .threshold-inputs {
             margin-top: 20px;
@@ -31,6 +37,9 @@
             display: inline-block;
             width: 150px;
             margin-right: 10px;
+        }
+        .intervention-container {
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -69,12 +78,18 @@
         <ul id="alarm-log-list"></ul>
     </div>
 
+    <div class="intervention-container">
+        <h3>Blood Withdrawal</h3>
+        <button id="start-withdrawal">Start Blood Withdrawal</button>
+        <button id="stop-withdrawal">Stop Blood Withdrawal</button>
+    </div>
+
     <script>
         const patientId = "{{ patient_id }}";
         const socket = io();
-
         const alarmLog = document.getElementById('alarm-log-list');
         const alarmContainer = document.getElementById('alarm-container');
+        let withdrawalActive = false;
 
         // Chart.js setup
         const ctx = document.getElementById('patientChart').getContext('2d');
@@ -83,9 +98,9 @@
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'Heart Rate', data: [], borderColor: 'red', fill: false },
+                    { label: 'Heart Rate', data: [], borderColor: 'green', fill: false },
                     { label: 'SaO2', data: [], borderColor: 'blue', fill: false },
-                    { label: 'MAP', data: [], borderColor: 'green', fill: false },
+                    { label: 'MAP', data: [], borderColor: 'red', fill: false },
                     { label: 'RR', data: [], borderColor: 'orange', fill: false },
                     { label: 'etCO2', data: [], borderColor: 'purple', fill: false }
                 ]
@@ -109,12 +124,25 @@
             etCO2: { high: parseFloat(document.getElementById('etco2-high').value), low: parseFloat(document.getElementById('etco2-low').value) }
         });
 
+        // Alarm logging
         function logAlarm(message) {
             const now = new Date().toLocaleTimeString();
             alarmLog.innerHTML += `<li>[${now}] ${message}</li>`;
             alarmContainer.innerHTML = `<p>${message}</p>`;
         }
 
+        // Handle blood withdrawal
+        document.getElementById('start-withdrawal').addEventListener('click', () => {
+            withdrawalActive = true;
+            console.log('Blood withdrawal started');
+        });
+
+        document.getElementById('stop-withdrawal').addEventListener('click', () => {
+            withdrawalActive = false;
+            console.log('Blood withdrawal stopped');
+        });
+
+        // Socket events
         socket.on('connect', () => {
             console.log('Connected to server');
             socket.emit('join', patientId);
@@ -125,7 +153,7 @@
                 // Update DOM
                 document.getElementById('heart-rate').textContent = data.heart_rate.toFixed(2);
                 document.getElementById('sao2').textContent = data.SaO2.toFixed(2);
-                document.getElementById('map').textContent = data.MAP.toFixed(2);
+                document.getElementById('map').textContent = withdrawalActive ? 300 : data.MAP.toFixed(2);
                 document.getElementById('rr').textContent = data.RR.toFixed(2);
                 document.getElementById('etco2').textContent = data.etCO2.toFixed(2);
                 document.getElementById('simulation-time').textContent = data.time.toFixed(2);
@@ -136,7 +164,7 @@
                 patientChart.data.labels.push(currentTime);
                 patientChart.data.datasets[0].data.push({ x: currentTime, y: data.heart_rate });
                 patientChart.data.datasets[1].data.push({ x: currentTime, y: data.SaO2 });
-                patientChart.data.datasets[2].data.push({ x: currentTime, y: data.MAP });
+                patientChart.data.datasets[2].data.push({ x: currentTime, y: withdrawalActive ? 300 : data.MAP });
                 patientChart.data.datasets[3].data.push({ x: currentTime, y: data.RR });
                 patientChart.data.datasets[4].data.push({ x: currentTime, y: data.etCO2 });
 
