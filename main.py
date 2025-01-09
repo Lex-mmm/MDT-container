@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
+from Alarms.alarm_check import Alarms  # Import alarm-generation class
+import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 socketio = SocketIO(app)
@@ -19,8 +21,9 @@ class Patient:
         self.param_file = param_file
         self.running = False
         self.data_epoch = []
-        self.model = DigitalTwinModel(patient_id, param_file, data_callback=None)
-       # self.alarms = Alarms(patient_id)
+        self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
+                                    alarm_callback = Alarms(self.patient_id))
+        self.alarms = []
 
     def startup(self):
         """Start the simulation."""
@@ -86,9 +89,29 @@ def set_param():
     if patient_id not in twin_instances:
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
     
-    twin_instances[patient_id].events.change_param(param, value)
+    ## Change the .json file for the patient
+    with open(twin_instances[patient_id].param_file, "r") as f:
+        params = json.load(f)
+
+        for a,b in params.items():
+            for c,d in b.items():
+                if c == param:
+                    print(f"Changing {param} from {d} to {value}")
+                    params[a][c] = value
+        
+        with open("current.json", "w") as f:
+            json.dump(params, f)
+    ## Reload the model with the new parameters
     twin_instances[patient_id].model.update_parameters("current.json")
     return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
+
+@app.get('/get_alarms')
+def get_alarms():
+    """Get the alarms for a specific patient."""
+    patient_id = request.args.get("patient_id")
+    if patient_id not in twin_instances:
+        return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    return jsonify(twin_instances[patient_id].model.alarms)
 
 ## Call for getting latest data-points for the patient (n=120)
 @app.get('/get_latest_data')

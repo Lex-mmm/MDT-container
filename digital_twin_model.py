@@ -9,14 +9,15 @@ import threading
 
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="parameters.json", data_callback=None):
+    def __init__(self, patient_id, param_file="parameters.json", data_callback=None, alarm_callback=None):
         self.patient_id = patient_id
         self.running = False
         self.t = 0
         self.dt = 0.01  # Time step
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
-
+        self.alarm_callback = alarm_callback  # Callback function to emit alarms
+        self.alarms = []
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
 
         ## set datapoint amount in local memory
@@ -525,7 +526,7 @@ class DigitalTwinModel:
         return dxdt
     
 
-    
+
     ## Start-stop calls
 
     def start_simulation(self):
@@ -569,6 +570,10 @@ class DigitalTwinModel:
                             "RR": np.round(self.RR, 2),
                             "etCO2": np.round(self.current_state[17], 2)
                     } }
+                
+                alarm_output = self.alarm_callback.check_alarms(data = data['values'], timestamp = data['time']) ## Do alarm checks
+                if alarm_output:
+                    self.alarms.append(alarm_output)   ## Append alarm output to list
 
                 if len(self.data_epoch) == 0:
                     self.data_epoch = [data]
