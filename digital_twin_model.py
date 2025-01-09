@@ -17,6 +17,13 @@ class DigitalTwinModel:
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
 
+        self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
+
+        ## set datapoint amount in local memory
+        self.data_points = 120 ## 2 minutes 
+
+        self.data_epoch = {}
+
         # Load parameters from JSON
         self._load_parameters(param_file)
 
@@ -27,6 +34,11 @@ class DigitalTwinModel:
         self.current_state = self.initialize_state()
 
         self.current_heart_rate = 0  # Initialize monitored value
+
+    ## Add definition for API setting new parameter-settings dependent on .json format
+    def update_parameters(self, param_file_new):
+        self._load_parameters(param_file_new)
+
 
     def _load_parameters(self, param_file):
         """
@@ -511,6 +523,10 @@ class DigitalTwinModel:
             ]
         ])
         return dxdt
+    
+
+    
+    ## Start-stop calls
 
     def start_simulation(self):
         """Solve the ODEs and compute variables after integration."""
@@ -543,24 +559,31 @@ class DigitalTwinModel:
                 print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
                 last_print_time = self.t
 
-            # Emit data to the client every 1 seconds
-            if self.t - last_emit_time >= 1.0:
-                data = {
-                    "heart_rate": self.current_heart_rate,
-                    "SaO2": Sa_O2,
-                    "MAP": np.round((np.mean(self.P_store))),
-                    "RR": self.RR,
-                    "etCO2": self.current_state[17],
-                    "time": self.t,
-                    # Add other monitored values here
-                }
-                if self.data_callback:
-                    self.data_callback(self.patient_id, data)
+            # Emit data to the client every 1 seconds = output_frequency
+            if self.t - last_emit_time >= self.output_frequency:
+                data = {'time': np.round(self.t),  ## Round timestep to the second
+                        'values':{
+                            "heart_rate": np.round(self.current_heart_rate, 2),
+                            "SaO2": np.round(Sa_O2, 2),
+                            "MAP": np.round(np.mean(self.P_store), 2),
+                            "RR": np.round(self.RR, 2),
+                            "etCO2": np.round(self.current_state[17], 2)
+                    } }
+
+                if len(self.data_epoch) == 0:
+                    self.data_epoch = [data]
+                else: 
+                    self.data_epoch.append(data)
+                    self.data_epoch = self.data_epoch[ -self.data_points:] # Keep last N data points
+
                 last_emit_time = self.t
 
             # Update simulation time and pause
             self.t += self.dt
             time.sleep(self.dt)  # Control simulation speed
+
+
+
 
     def stop_simulation(self):
         """Stop the simulation loop."""

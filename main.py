@@ -6,56 +6,114 @@ from digital_twin_model import DigitalTwinModel  # Import your updated class
 app = Flask(__name__, template_folder='templates', static_folder='static')
 socketio = SocketIO(app)
 
-# A global dictionary to store the resources and settings
-resources = {
-    'residents': 0,
-    'nurses': 0,
-    'physicians': 0,
-    'other_staff': 0,
-    'setting': 'NICU'  # Default setting
-}
-
 # Dictionary to store instances of DigitalTwinModel keyed by patient_id
 twin_instances = {}
 
-def emit_patient_data(patient_id, data):
-    """Emit patient data to the client."""
-    socketio.emit('patient_data', {'patient_id': patient_id, **data}, room=patient_id)
+## Define global class for patient-level information
+class Patient:
 
-@app.route('/')
-def home():
-    """Home page displaying the list of patients."""
-    patient_list = list(twin_instances.keys())
-    return render_template('index.html', patients=patient_list, resources=resources)
+    def __init__(self, patient_id, param_file="parameters.json", pat_char=None):
+
+        ## Initialize starting instance variables
+        self.patient_id = patient_id
+        self.param_file = param_file
+        self.running = False
+        self.data_epoch = []
+        self.model = DigitalTwinModel(patient_id, param_file, data_callback=None)
+       # self.alarms = Alarms(patient_id)
+
+    def startup(self):
+        """Start the simulation."""
+        self.running = True
+        self.model.start_simulation()
+
+
+    def stop_patient(self):
+        """Stop the simulation."""
+        self.running = False
+        self.model.stop_simulation()
+
+
+
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():
     """Start simulation for a specific patient."""
-    patient_id = request.form.get("patient_id")
-    param_file = request.form.get("param_file", "sepsis.json")
+    ## Allow for back-end submission of patient_id and param_file
+    patient_id = request.args.get("patient_id")
+    param_file = request.args.get("param_file")
+
     if not patient_id:
         return jsonify({"error": "Missing patient ID"}), 400
 
     if patient_id not in twin_instances:
-        # Create a new DigitalTwinModel instance
-        twin_instances[patient_id] = DigitalTwinModel(patient_id, param_file, data_callback=emit_patient_data)
+        # Create a new patient instance
+        twin_instances[patient_id] = Patient(patient_id, param_file)
+    
 
-    model = twin_instances[patient_id]
-    if not model.running:
+    patient = twin_instances[patient_id]
+    if not patient.running:
         # Start the simulation in a new thread
-        threading.Thread(target=model.start_simulation).start()
+        threading.Thread(target=patient.startup).start()
         return jsonify({"status": f"Simulation started for patient {patient_id}"})
     else:
         return jsonify({"status": f"Simulation already running for patient {patient_id}"})
+    
 
-@app.route('/stop_simulation/<patient_id>', methods=['POST'])
-def stop_simulation(patient_id):
+@app.route('/stop_simulation', methods=['POST'])
+def stop_simulation():
     """Stop simulation for a specific patient."""
+    patient_id = request.args.get("patient_id")
     if patient_id in twin_instances and twin_instances[patient_id].running:
-        twin_instances[patient_id].stop_simulation()
+        twin_instances[patient_id].stop_patient()
         return jsonify({"status": f"Simulation stopped for patient {patient_id}"})
     else:
         return jsonify({"status": f"No running simulation for patient {patient_id}"})
+
+## Call for getting currently active patients
+@app.get(('/get_patient_list'))
+def get_patient_list():
+    """Get the list of patients."""
+    return jsonify(list(twin_instances.keys()))
+
+## Call for changing parameter settings -> Ter check over methodiek
+@app.route('/set_param', methods=['POST'])
+def set_param():
+    """Change a parameter value for a specific patient."""
+    patient_id = request.args.get("patient_id")
+    param = request.args.get("param")
+    value = request.args.get("value")
+    if patient_id not in twin_instances:
+        return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    
+    twin_instances[patient_id].events.change_param(param, value)
+    twin_instances[patient_id].model.update_parameters("current.json")
+    return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
+
+## Call for getting latest data-points for the patient (n=120)
+@app.get('/get_latest_data')
+def get_latest_data():
+    """Get the latest data for a specific patient."""
+    patient_id = request.args.get("patient_id")
+    if patient_id not in twin_instances:
+        return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    return jsonify(twin_instances[patient_id].model.data_epoch)
+
+if __name__ == '__main__':
+    socketio.run(app, host="0.0.0.0", port=5001)
+
+
+
+
+
+
+
+
+
+
+
+## Socket.IO event handlers  
+
 
 @app.route('/patient/<patient_id>')
 def view_patient(patient_id):
@@ -91,5 +149,4 @@ def on_join(data):
     join_room(patient_id)
     print(f'Client joined room for patient {patient_id}')
 
-if __name__ == '__main__':
-    socketio.run(app, host="0.0.0.0", port=5001)
+
