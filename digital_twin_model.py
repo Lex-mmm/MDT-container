@@ -598,3 +598,18 @@ class DigitalTwinModel:
         else:
             print(f"Simulation for patient {self.patient_id} is not running.")
         return {"status": f"Simulation stopped for patient {self.patient_id}"}
+    
+
+    def update_param(self, patient_id, param, value):
+        """ Update non-calculated parameters due to outbound communications"""
+        ## Mapping of parameter names to their indices in the state vector
+        possibilities = ["params", "initial_conditions", "bloodflows", "cardio_constants", "gas_exchange_params", "respiratory_control_params", "cardio_control_params", "misc_constants"]
+        for key in possibilities:
+            attr = getattr(self, key)
+            if param in attr.keys():
+                #print(attr.keys())
+                attr[param] = float(value)
+                return {"status": f"Parameter {param} updated to {value} for patient {patient_id}"}
+                #break
+        else: 
+            return(f"Error: Parameter {param} not found in the parameter dictionaries for patient {patient_id}")

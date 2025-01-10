@@ -88,23 +88,17 @@ def set_param():
     value = request.args.get("value")
     if patient_id not in twin_instances:
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    ## Update the parameter value in the model
+    ## PM: Checks for viable parameter ranges
     
-    ## Change the .json file for the patient
-    with open(twin_instances[patient_id].param_file, "r") as f:
-        params = json.load(f)
+    output = twin_instances[patient_id].model.update_param(patient_id, param, value)
+    if 'Error' in output:
+        return jsonify({"error": output})
+    else: 
+        return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
 
-        for a,b in params.items():
-            for c,d in b.items():
-                if c == param:
-                    print(f"Changing {param} from {d} to {value}")
-                    params[a][c] = value
-        
-        with open("current.json", "w") as f:
-            json.dump(params, f)
-    ## Reload the model with the new parameters
-    twin_instances[patient_id].model.update_parameters("current.json")
-    return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
 
+## Call for getting alarms for the patient (last n=60)
 @app.get('/get_alarms')
 def get_alarms():
     """Get the alarms for a specific patient."""
@@ -112,6 +106,8 @@ def get_alarms():
     if patient_id not in twin_instances:
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
     return jsonify(twin_instances[patient_id].model.alarms)
+
+
 
 ## Call for getting latest data-points for the patient (n=120)
 @app.get('/get_latest_data')
@@ -124,52 +120,4 @@ def get_latest_data():
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=5001)
-
-
-
-
-
-
-
-
-
-
-
-## Socket.IO event handlers  
-
-
-@app.route('/patient/<patient_id>')
-def view_patient(patient_id):
-    """Display monitored values for a specific patient."""
-    if patient_id not in twin_instances:
-        return f"Patient {patient_id} not found.", 404
-    return render_template('patient.html', patient_id=patient_id)
-
-@app.route("/set_resources", methods=["POST"])
-def set_resources():
-    """Update healthcare resources and setting."""
-    resources['residents'] = int(request.form.get("residents", 0))
-    resources['nurses'] = int(request.form.get("nurses", 0))
-    resources['physicians'] = int(request.form.get("physicians", 0))
-    resources['other_staff'] = int(request.form.get("other_staff", 0))
-    resources['setting'] = request.form.get("setting", "NICU")  # Default to NICU if not provided
-
-    print("Updated Resources and Setting:", resources)  # Debugging
-    return redirect(url_for("home"))
-
-# Socket.IO event handlers
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
-@socketio.on('join')
-def on_join(data):
-    patient_id = data
-    join_room(patient_id)
-    print(f'Client joined room for patient {patient_id}')
-
 
