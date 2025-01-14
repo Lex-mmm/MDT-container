@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit, join_room
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
 from Alarms.alarm_check import Alarms  # Import alarm-generation class
+from Inference.inference_calc import Inference  # Import inference-generation class
 import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -14,7 +15,7 @@ twin_instances = {}
 ## Define global class for patient-level information
 class Patient:
 
-    def __init__(self, patient_id, param_file="parameters.json", pat_char=None):
+    def __init__(self, patient_id, param_file="parameters.json", pat_char=None, sleep=True):
 
         ## Initialize starting instance variables
         self.patient_id = patient_id
@@ -22,7 +23,8 @@ class Patient:
         self.running = False
         self.data_epoch = []
         self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
-                                    alarm_callback = Alarms(self.patient_id))
+                                    alarm_callback = Alarms(self.patient_id),
+                                    sleep=sleep)
         self.alarms = []
 
     def startup(self):
@@ -45,13 +47,14 @@ def start_simulation():
     ## Allow for back-end submission of patient_id and param_file
     patient_id = request.args.get("patient_id")
     param_file = request.args.get("param_file")
+    sleep = request.args.get("sleep")
 
     if not patient_id:
         return jsonify({"error": "Missing patient ID"}), 400
 
     if patient_id not in twin_instances:
         # Create a new patient instance
-        twin_instances[patient_id] = Patient(patient_id, param_file)
+        twin_instances[patient_id] = Patient(patient_id= patient_id, param_file= param_file, sleep=sleep)
     
 
     patient = twin_instances[patient_id]
@@ -107,6 +110,15 @@ def get_alarms():
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
     return jsonify(twin_instances[patient_id].model.alarms)
 
+@app.route('/infer_swap', methods = ['POST'])
+def infer_swap():
+    patient_id = request.args.get("patient_id")
+    if patient_id not in twin_instances:
+        return jsonify({"error": f"Patient {patient_id} not found"}), 404
+    inference_level = request.args.get("inference_level")
+    param = request.args.get("param")
+    twin_instances[patient_id].model.inference.change_inference(param, inference_level)
+    return jsonify({"status": f"Inference level for {param} changed to {inference_level} for patient {patient_id}"})
 
 
 ## Call for getting latest data-points for the patient (n=120)

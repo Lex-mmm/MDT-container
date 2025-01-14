@@ -11,16 +11,14 @@ class Alarms:
         alarms = []
         msg = None
         for key, value in data.items():
-            #print(f"Checking {key} with value {value}")
-            #print(f"Value: {value} < {self.alarm_data[key]['min']}")
-            #print(f"Value: {value} > {self.alarm_data[key]['max']}")
             match value:
                 case _ if value > self.alarm_data[key]["max"]:
                     msg = f"Alarm (high): {key} at {timestamp} s."
-                    pass
+                    break
+                
                 case _ if value < self.alarm_data[key]["min"]:
                     msg = f"Alarm (low): {key} at {timestamp} s."
-                    pass
+                    break
         if msg:
             alarms.append(msg)
             return alarms

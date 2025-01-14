@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy.integrate import solve_ivp
+from Inference.inference_calc import Inference
 import time
 import json
 from datetime import datetime
@@ -9,16 +10,26 @@ import threading
 
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="parameters.json", data_callback=None, alarm_callback=None):
+    def __init__(self, patient_id, param_file="parameters.json", 
+                 data_callback=None, 
+                 alarm_callback=None, 
+                 sleep=True,
+                 time_step=0.01
+                 ): ## modify for brute-force jobs
         self.patient_id = patient_id
         self.running = False
         self.t = 0
-        self.dt = 0.01  # Time step
+        self.dt = time_step  # Time step
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
         self.alarm_callback = alarm_callback  # Callback function to emit alarms
         self.alarms = []
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
+
+        ## Integrate starting levels of measurement uncertainty
+        self.inference = Inference()
+
+        self.sleep = sleep  # Sleep between iterations, boolean
 
         ## set datapoint amount in local memory
         self.data_points = 120 ## 2 minutes 
@@ -536,6 +547,7 @@ class DigitalTwinModel:
         last_emit_time = self.t  # Track last emit time
 
         while self.running:
+            
             # Define time span for the current step
             t_span = [self.t, self.t + self.dt]
             t_eval = [self.t + self.dt]  # Evaluate at the end of dt
@@ -565,16 +577,19 @@ class DigitalTwinModel:
                 data = {'time': np.round(self.t),  ## Round timestep to the second
                         'values':{
                             "heart_rate": np.round(self.current_heart_rate, 2),
-                            "SaO2": np.round(Sa_O2, 2),
+                            "SaO2": np.round(self.current_SaO2, 2),
                             "MAP": np.round(np.mean(self.P_store), 2),
                             "RR": np.round(self.RR, 2),
                             "etCO2": np.round(self.current_state[17], 2)
                     } }
-                
-                alarm_output = self.alarm_callback.check_alarms(data = data['values'], timestamp = data['time']) ## Do alarm checks
+                ## Do inference checks, add to existing values
+                data['values'] = self.inference.check_inference(data['values'] ) 
+                ## Do alarm checks
+                alarm_output = self.alarm_callback.check_alarms(data = data['values'], timestamp = data['time'])
                 if alarm_output:
                     self.alarms.append(alarm_output)   ## Append alarm output to list
-
+                
+                ## Save latest data as epoch: Keep n data points for callback purposes
                 if len(self.data_epoch) == 0:
                     self.data_epoch = [data]
                 else: 
@@ -585,7 +600,9 @@ class DigitalTwinModel:
 
             # Update simulation time and pause
             self.t += self.dt
-            time.sleep(self.dt)  # Control simulation speed
+            if self.sleep:
+                time.sleep(self.dt)  # Control simulation speed
+
 
 
 
