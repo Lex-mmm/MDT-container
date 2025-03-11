@@ -14,7 +14,7 @@ MDT-container is a Flask-based application that simulates digital twin models fo
 1. Clone the repository:
     ```sh
     git clone https://github.com/your-repo/MDT-container.git
-    cd MDT-container/model
+    cd ...
     ```
 
 2. Create a virtual environment and activate it:
