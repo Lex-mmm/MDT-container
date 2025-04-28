@@ -49,6 +49,9 @@ class DigitalTwinModel:
         self.current_heart_rate = 0  # Initialize monitored value
         #self.master_parameters = {}  # Initialize master parameters
 
+        # Initialize Inference class
+        self._compute_all_derived_params()
+
     def add_disease(self, disease, severity):
         package = {
             "disease": disease,
@@ -86,6 +89,98 @@ class DigitalTwinModel:
                 self.master_parameters['misc_constants.tmax']['value'] + self.master_parameters['misc_constants.T']['value'],
                 self.master_parameters['misc_constants.T']['value']
             )
+
+    def _compute_all_derived_params(self):
+
+
+        # --- 1. Base O2 / CO2 production rates ---
+        M_O2   = self.master_parameters['params.M_O2']['value']                   # 5.2
+        # M_B_CO2 = 0.2 * M_O2
+        self.master_parameters['params.M_B_CO2'] = {'value': 0.2 * M_O2}
+        # M_CO2 = 0.85 * M_O2
+        self.master_parameters['params.M_CO2']   = {'value': 0.85 * M_O2}
+        # M_S_CO2 = M_CO2 - M_B_CO2
+        self.master_parameters['params.M_S_CO2'] = {
+            'value': self.master_parameters['params.M_CO2']['value']
+                   - self.master_parameters['params.M_B_CO2']['value']
+        }
+        # M_B_O2 = -0.2 * M_O2
+        self.master_parameters['params.M_B_O2']  = {'value': -0.2 * M_O2}
+        # M_S_O2 = -M_O2 - M_B_O2  (matches your old “-5.2 - M_B_O2”)
+        self.master_parameters['params.M_S_O2']  = {
+            'value': -M_O2 - self.master_parameters['params.M_B_O2']['value']
+        }
+
+        # --- 2. Volumes ---
+        V_CO2      = self.master_parameters['params.V_CO2']['value']
+        V_O2       = self.master_parameters['params.V_O2']['value']
+        V_Btis_CO2 = self.master_parameters['params.V_Btis_CO2']['value']
+        V_Btis_O2  = self.master_parameters['params.V_Btis_O2']['value']
+        fVcap      = self.master_parameters['params.f_V_cap']['value']
+
+        # V_Stis_* = total - blood-tissue
+        self.master_parameters['params.V_Stis_CO2'] = {'value': V_CO2 - V_Btis_CO2}
+        self.master_parameters['params.V_Stis_O2']  = {'value': V_O2  - V_Btis_O2 }
+
+        # capillary volumes = f_V_cap * tissue volumes
+        self.master_parameters['params.V_Bcap_CO2'] = {'value': fVcap * V_Btis_CO2}
+        self.master_parameters['params.V_Bcap_O2']  = {'value': fVcap * V_Btis_O2 }
+        self.master_parameters['params.V_Scap_CO2'] = {'value': fVcap * self.master_parameters['params.V_Stis_CO2']['value']}
+        self.master_parameters['params.V_Scap_O2']  = {'value': fVcap * self.master_parameters['params.V_Stis_O2']['value']}
+
+        # --- 3. Diffusion constants ---
+        w       = self.master_parameters['params.w']['value']
+        K_CO2   = self.master_parameters['params.K_CO2']['value']
+        K_O2τ   = self.master_parameters['params.K_O2_tau']['value']
+        # D_T_CO2 = 9/60 * w / K_CO2
+        self.master_parameters['params.D_T_CO2'] = {'value': 9/60 * w / K_CO2}
+        # D_T_O2  = 9/60 * w / K_O2_tau
+        self.master_parameters['params.D_T_O2']  = {'value': 9/60 * w / K_O2τ}
+
+        # --- 4. Blood-flow fractions ---
+        q_p = self.master_parameters['bloodflows.q_p']['value']
+        self.master_parameters['bloodflows.q_Bv'] = {'value': 0.2 * q_p}
+        self.master_parameters['bloodflows.q_S']  = {'value': 0.8 * q_p}
+    # --- 5. Derived initial concentrations ---
+    # pull directly from self.master_parameters (mp)
+        if 'initial_conditions.c_Scap_CO2' not in self.master_parameters:
+            c_Stis_CO2 = self.master_parameters['initial_conditions.c_Stis_CO2']['value']
+            M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
+            D_T_CO2    = self.master_parameters['params.D_T_CO2']['value']
+            self.master_parameters['initial_conditions.c_Scap_CO2'] = {
+                'value': c_Stis_CO2 - M_S_CO2 / D_T_CO2
+            }
+
+        if 'initial_conditions.c_Scap_O2' not in self.master_parameters:
+            c_Stis_O2 = self.master_parameters['initial_conditions.c_Stis_O2']['value']
+            M_S_O2    = self.master_parameters['params.M_S_O2']['value']
+            D_T_O2    = self.master_parameters['params.D_T_O2']['value']
+            self.master_parameters['initial_conditions.c_Scap_O2'] = {
+                'value': c_Stis_O2 + M_S_O2 / D_T_O2
+            }
+
+        if 'initial_conditions.c_Bcap_CO2' not in self.master_parameters:
+            c_Btis_CO2 = self.master_parameters['initial_conditions.c_Btis_CO2']['value']
+            M_B_CO2    = self.master_parameters['params.M_B_CO2']['value']
+            D_T_CO2    = self.master_parameters['params.D_T_CO2']['value']
+            self.master_parameters['initial_conditions.c_Bcap_CO2'] = {
+                'value': c_Btis_CO2 - M_B_CO2 / D_T_CO2
+            }
+
+        if 'initial_conditions.c_Bcap_O2' not in self.master_parameters:
+            c_Btis_O2 = self.master_parameters['initial_conditions.c_Btis_O2']['value']
+            M_B_O2    = self.master_parameters['params.M_B_O2']['value']
+            D_T_O2    = self.master_parameters['params.D_T_O2']['value']
+            self.master_parameters['initial_conditions.c_Bcap_O2'] = {
+                'value': c_Btis_O2 + M_B_O2 / D_T_O2
+            }
+
+            # --- 3.b populate gas_exchange_params entries so extended_state_space_equations can find them ---
+        self.master_parameters['gas_exchange_params.D_S_CO2'] = {'value': self.master_parameters['params.D_T_CO2']['value']}
+        self.master_parameters['gas_exchange_params.D_B_CO2'] = {'value': self.master_parameters['params.D_T_CO2']['value']}
+        self.master_parameters['gas_exchange_params.D_S_O2']  = {'value': self.master_parameters['params.D_T_O2']['value']}
+        self.master_parameters['gas_exchange_params.D_B_O2'] = {'value': self.master_parameters['params.D_T_O2']['value']}
+
 
     def initialize_model_parameters(self):
         """Initialize model parameters like elastance, resistance, uvolume, etc."""
@@ -303,6 +398,7 @@ class DigitalTwinModel:
 
         return np.array([0, dPmus_dt])
 
+
     def extended_state_space_equations(self, t, x):
         """Define the combined system of differential equations."""
         # Use self.HR_store, self.buffer_index, self.window_size, self.HR
@@ -407,8 +503,7 @@ class DigitalTwinModel:
 
         CO = self.master_parameters['bloodflows.CO']['value']
         q_p = CO
-        sh = 0.02  # Shunt fraction
-        q_Bv = 0.2 * CO
+
         q_S = 0.8 * CO
 
         # Compute mechanical derivatives
@@ -452,14 +547,22 @@ class DigitalTwinModel:
             dp_a_O2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
 
         # The systemic tissue compartment
-        dc_Stis_CO2 = ((self.master_parameters['params.M_O2']['value']*.85 - self.M_B_CO2 *.2) - self.D_T_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / (self.master_parameters['params.V_CO2']['value'] -self.master_parameters['params.V_Btis_CO2']['value'])
-        self.V_Stis_CO2 = self.master_parameters['params.V_CO2']['value'] - self.master_parameters['params.V_Btis_CO2']['value']
+        M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
+        D_S_CO2    = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
+        V_Stis_CO2 = self.master_parameters['params.V_Stis_CO2']['value']
+        V_Scap_CO2 = self.master_parameters['params.V_Scap_CO2']['value']
 
-        dc_Scap_CO2 = (q_S * (c_a_CO2 - c_Scap_CO2) + self.D_T_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / ( self.V_Stis_CO2 *0.01 )
+        dc_Stis_CO2 = (M_S_CO2 - D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2))  / V_Stis_CO2
+        dc_Scap_CO2 = (q_S * (c_a_CO2 - c_Scap_CO2) + D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / V_Scap_CO2
 
-        self.M_B_O2 = -0.2 * self.master_parameters['params.M_O2']['value']
-        dc_Stis_O2 = (-5.2 -self.M_B_O2 - self.D_T_CO2 * (c_Stis_O2 - c_Scap_O2)) / (self.master_parameters['params.V_O2']['value']-self.master_parameters['params.V_Btis_O2']['value'])
-        dc_Scap_O2 = (q_S * (c_a_O2 - c_Scap_O2) + self.D_T_O2 * (c_Stis_O2 - c_Scap_O2)) / (self.V_Stis_CO2*0.01)
+
+        M_S_O2     = self.master_parameters['params.M_S_O2']['value']
+        D_S_O2     = self.master_parameters['gas_exchange_params.D_S_O2']['value']
+        V_Stis_O2  = self.master_parameters['params.V_Stis_O2']['value']
+        V_Scap_O2  = self.master_parameters['params.V_Scap_O2']['value']
+
+        dc_Stis_O2 = (M_S_O2 - D_S_O2 * (c_Stis_O2 - c_Scap_O2)) / V_Stis_O2
+        dc_Scap_O2 = (q_S * (c_a_O2 - c_Scap_O2) + D_S_O2 * (c_Stis_O2 - c_Scap_O2)) / V_Scap_O2
 
         # Central control
         u_c = p_a_CO2 - self.master_parameters['respiratory_control_params.PaCO2_n']['value']
