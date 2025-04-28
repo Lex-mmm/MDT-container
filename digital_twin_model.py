@@ -10,7 +10,7 @@ import threading
 
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="parameters.json", 
+    def __init__(self, patient_id, param_file="sepsis.json", 
                  data_callback=None, 
                  alarm_callback=None, 
                  sleep=True,
@@ -619,13 +619,24 @@ class DigitalTwinModel:
 
     def update_param(self, patient_id, param, value):
         """ Update non-calculated parameters due to outbound communications"""
+        param = str(param)
+        loc = None ## Initialize
+
         ## Mapping of parameter names to their indices in the state vector
-        possibilities = ["params", "initial_conditions", "bloodflows", "cardio_constants", "gas_exchange_params", "respiratory_control_params", "cardio_control_params", "misc_constants"]
+        if param.split('|')[0] == "resistance" or param.split('|')[0] == "uvolume" or param.split('|')[0] == "elastance":
+            loc = int(param.split('|')[1]) -1 ## correct for 0'th position
+            param = str(param.split('|')[0])
+        possibilities = ["params", "initial_conditions","cardio_parameters", "bloodflows", "cardio_constants", "gas_exchange_params", "respiratory_control_params", "cardio_control_params", "misc_constants"]
         for key in possibilities:
             attr = getattr(self, key)
             if param in attr.keys():
-                #print(attr.keys())
-                attr[param] = float(value)
+
+                if loc:
+                    for i in range(len(attr[param])):
+                        if i == loc:
+                            attr[param][loc] = float(value)
+                else:
+                    attr[param] = float(value)
                 return {"status": f"Parameter {param} updated to {value} for patient {patient_id}"}
                 #break
         else: 

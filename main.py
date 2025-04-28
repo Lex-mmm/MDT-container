@@ -7,7 +7,6 @@ from Inference.inference_calc import Inference  # Import inference-generation cl
 import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-socketio = SocketIO(app)
 
 # Dictionary to store instances of DigitalTwinModel keyed by patient_id
 twin_instances = {}
@@ -100,7 +99,6 @@ def set_param():
     else: 
         return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
 
-
 ## Call for getting alarms for the patient (last n=60)
 @app.get('/get_alarms')
 def get_alarms():
@@ -131,5 +129,8 @@ def get_latest_data():
     return jsonify(twin_instances[patient_id].model.data_epoch)
 
 if __name__ == '__main__':
+    print("Starting server")
     socketio.run(app, host="0.0.0.0", port=5001)
+
+    
 
