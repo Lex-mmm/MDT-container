@@ -431,10 +431,10 @@ class DigitalTwinModel:
             dp_a_O2 = 863 * q_p * (1 - self.master_parameters['sh']['value']) * (c_v_O2 - c_a_O2) / (self.master_parameters['V_A']['value'] * 1000)
 
         # The systemic tissue compartment
-        dc_Stis_CO2 = (self.master_parameters['M_S_CO2']['value'] - self.master_parameters['D_S_CO2']['value'] * (c_Stis_CO2 - c_Scap_CO2)) / self.master_parameters['V_Stis_CO2']['value']
-        dc_Scap_CO2 = (q_S * (c_a_CO2 - c_Scap_CO2) + self.master_parameters['D_S_CO2']['value'] * (c_Stis_CO2 - c_Scap_CO2)) / self.master_parameters['V_Scap_CO2']['value']
-        dc_Stis_O2 = (self.master_parameters['M_S_O2']['value'] - self.master_parameters['D_S_O2']['value'] * (c_Stis_O2 - c_Scap_O2)) / self.master_parameters['V_Stis_O2']['value']
-        dc_Scap_O2 = (q_S * (c_a_O2 - c_Scap_O2) + self.master_parameters['D_S_O2']['value'] * (c_Stis_O2 - c_Scap_O2)) / self.master_parameters['V_Scap_O2']['value']
+        dc_Stis_CO2 = ((self.master_parameters['M_CO2']['value']*.85-self.master_parameters['M_B_CO2']['value']*.2) - self.master_parameters['D_S_CO2']['value'] * (c_Stis_CO2 - c_Scap_CO2)) / (self.master_parameters['V_CO2']['value'] -self.master_parameters['V_Btis_CO2']['value'])
+        dc_Scap_CO2 = (q_S * (c_a_CO2 - c_Scap_CO2) + self.master_parameters['D_S_CO2']['value'] * (c_Stis_CO2 - c_Scap_CO2)) / (self.master_parameters['V_Stis_CO2']['value']*0.01)
+        dc_Stis_O2 = (-5.2 -self.master_parameters['M_B_O2']['value'] - self.master_parameters['D_S_O2']['value'] * (c_Stis_O2 - c_Scap_O2)) / (self.master_parameters['V_O2']['value']-self.master_parameters['V_Btis_O2']['value'])
+        dc_Scap_O2 = (q_S * (c_a_O2 - c_Scap_O2) + self.master_parameters['D_S_O2']['value'] * (c_Stis_O2 - c_Scap_O2)) / (self.master_parameters['V_Stis_O2']['value']*0.01)
 
         # Central control
         u_c = p_a_CO2 - self.master_parameters['PaCO2_n']['value']
