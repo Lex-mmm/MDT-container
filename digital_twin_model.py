@@ -160,9 +160,9 @@ class DigitalTwinModel:
         state[17] = self.master_parameters['initial_conditions.p_a_CO2']['value']
         state[18] = self.master_parameters['initial_conditions.p_a_O2']['value']
         state[19] = self.master_parameters['initial_conditions.c_Stis_CO2']['value']
-        state[20] = self.master_parameters['initial_conditions.c_Scap_CO2']['value']
+        state[20] = 0.543-self.master_parameters['initial_conditions.M_S_CO2']['value'] / self.master_parameters['initial_conditions.D_T_CO2']['value'] 
         state[21] = self.master_parameters['initial_conditions.c_Stis_O2']['value']
-        state[22] = self.master_parameters['initial_conditions.c_Scap_O2']['value']
+        state[22] = 0.128 - self.master_parameters['initial_conditions.M_S_O2']['value'] / self.master_parameters['initial_conditions.D_T_O2']['value']
         state[23] = self.master_parameters['initial_conditions.Delta_RR_c']['value']
         state[24] = self.master_parameters['initial_conditions.Delta_Pmus_c']['value']
         state[25] = -2  # Pmus
