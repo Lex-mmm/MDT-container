@@ -1,114 +1,439 @@
 {
-    "params.M_O2": 5.2,
+    "params.M_O2": {
+        "value": 5.2,
+        "min": 5.2,
+        "max": 5.2
+    },
     "params.M_S_CO2": "M_CO2 - M_B_CO2",
     "params.M_B_CO2": "0.2 * M_O2",
-    "params.V_Btis_O2": 1000,
-    "params.V_D": 0.181,
-    "params.f_V_cap": 0.01,
-    "params.w": 83.2,
+    "params.V_Btis_O2": {
+        "value": 1000,
+        "min": 1000,
+        "max": 1000
+    },
+    "params.V_D": {
+        "value": 0.181,
+        "min": 0.181,
+        "max": 0.181
+    },
+    "params.f_V_cap": {
+        "value": 0.01,
+        "min": 0.01,
+        "max": 0.01
+    },
+    "params.w": {
+        "value": 83.2,
+        "min": 83.2,
+        "max": 83.2
+    },
     "params.M_CO2": "0.85 * M_O2",
-    "params.V_CO2": 15000,
-    "params.V_O2": 6000,
+    "params.V_CO2": {
+        "value": 15000,
+        "min": 15000,
+        "max": 15000
+    },
+    "params.V_O2": {
+        "value": 6000,
+        "min": 6000,
+        "max": 6000
+    },
     "params.M_B_O2": "-0.2 * M_O2",
     "params.M_S_O2": "-5.2 - M_B_O2",
-    "params.V_Btis_CO2": 900,
+    "params.V_Btis_CO2": {
+        "value": 900,
+        "min": 900,
+        "max": 900
+    },
     "params.V_Stis_CO2": "V_CO2 - V_Btis_CO2",
     "params.V_Stis_O2": "V_O2 - V_Btis_O2",
     "params.V_Bcap_CO2": "0.01 * V_Btis_CO2",
     "params.V_Scap_CO2": "0.01 * V_Stis_CO2",
     "params.V_Bcap_O2": "0.01 * V_Btis_O2",
     "params.V_Scap_O2": "0.01 * V_Stis_O2",
-    "params.K_O2": 0.2,
-    "params.k_O2": 0.046,
-    "params.K_CO2": 0.0065,
-    "params.k_CO2": 0.244,
-    "params.K_O2_tau": 0.0025,
+    "params.K_O2": {
+        "value": 0.2,
+        "min": 0.2,
+        "max": 0.2
+    },
+    "params.k_O2": {
+        "value": 0.046,
+        "min": 0.046,
+        "max": 0.046
+    },
+    "params.K_CO2": {
+        "value": 0.0065,
+        "min": 0.0065,
+        "max": 0.0065
+    },
+    "params.k_CO2": {
+        "value": 0.244,
+        "min": 0.244,
+        "max": 0.244
+    },
+    "params.K_O2_tau": {
+        "value": 0.0025,
+        "min": 0.0025,
+        "max": 0.0025
+    },
     "params.D_T_CO2": "9 / 60 * w / K_CO2",
     "params.D_T_O2": "9 / 60 * w / K_O2_tau",
-    "initial_conditions.p_d1_CO2": 5,
-    "initial_conditions.p_d1_O2": 159,
-    "initial_conditions.p_d2_CO2": 6,
-    "initial_conditions.p_d2_O2": 158,
-    "initial_conditions.p_d3_CO2": 7,
-    "initial_conditions.p_d3_O2": 157,
-    "initial_conditions.p_a_CO2": 40,
-    "initial_conditions.p_a_O2": 100,
-    "initial_conditions.c_Stis_CO2": 0.543,
-    "initial_conditions.c_Stis_O2": 0.128,
-    "initial_conditions.c_Btis_CO2": 0.569,
-    "initial_conditions.c_Btis_O2": 0.112,
+    "initial_conditions.p_d1_CO2": {
+        "value": 5,
+        "min": 5,
+        "max": 5
+    },
+    "initial_conditions.p_d1_O2": {
+        "value": 159,
+        "min": 159,
+        "max": 159
+    },
+    "initial_conditions.p_d2_CO2": {
+        "value": 6,
+        "min": 6,
+        "max": 6
+    },
+    "initial_conditions.p_d2_O2": {
+        "value": 158,
+        "min": 158,
+        "max": 158
+    },
+    "initial_conditions.p_d3_CO2": {
+        "value": 7,
+        "min": 7,
+        "max": 7
+    },
+    "initial_conditions.p_d3_O2": {
+        "value": 157,
+        "min": 157,
+        "max": 157
+    },
+    "initial_conditions.p_a_CO2": {
+        "value": 40,
+        "min": 40,
+        "max": 40
+    },
+    "initial_conditions.p_a_O2": {
+        "value": 100,
+        "min": 100,
+        "max": 100
+    },
+    "initial_conditions.c_Stis_CO2": {
+        "value": 0.543,
+        "min": 0.543,
+        "max": 0.543
+    },
+    "initial_conditions.c_Stis_O2": {
+        "value": 0.128,
+        "min": 0.128,
+        "max": 0.128
+    },
+    "initial_conditions.c_Btis_CO2": {
+        "value": 0.569,
+        "min": 0.569,
+        "max": 0.569
+    },
+    "initial_conditions.c_Btis_O2": {
+        "value": 0.112,
+        "min": 0.112,
+        "max": 0.112
+    },
     "initial_conditions.c_Scap_CO2": "0.543 - M_S_CO2 / D_T_CO2",
     "initial_conditions.c_Scap_O2": "0.128 + M_S_O2 / D_T_O2",
     "initial_conditions.c_Bcap_CO2": "0.569 - M_B_CO2 / D_T_CO2",
     "initial_conditions.c_Bcap_O2": "0.112 + M_B_O2 / D_T_O2",
-    "bloodflows.CO": 84.5,
-    "bloodflows.q_p": 84.5,
-    "bloodflows.sh": 0.02,
+    "bloodflows.CO": {
+        "value": 84.5,
+        "min": 84.5,
+        "max": 84.5
+    },
+    "bloodflows.q_p": {
+        "value": 84.5,
+        "min": 84.5,
+        "max": 84.5
+    },
+    "bloodflows.sh": {
+        "value": 0.02,
+        "min": 0.02,
+        "max": 0.02
+    },
     "bloodflows.q_Bv": "0.2 * CO",
     "bloodflows.q_S": "0.8 * CO",
-    "respi_constants.C_l": 0.00127,
+    "respi_constants.C_l": {
+        "value": 0.00127,
+        "min": 0.0001,
+        "max": 0.005
+    },
     "respi_constants.UV_l": "34.4 / 1000",
     "respi_constants.R_ml": "1.021 * 1.5",
-    "respi_constants.C_tr": 0.00238,
+    "respi_constants.C_tr": {
+        "value": 0.00238,
+        "min": 0.001,
+        "max": 0.005
+    },
     "respi_constants.UV_tr": "6.63 / 1000",
-    "respi_constants.R_lt": 0.3369,
-    "respi_constants.C_b": 0.0131,
+    "respi_constants.R_lt": {
+        "value": 0.3369,
+        "min": 0.1,
+        "max": 2
+    },
+    "respi_constants.C_b": {
+        "value": 0.0131,
+        "min": 0.005,
+        "max": 0.03
+    },
     "respi_constants.UV_b": "18.7 / 1000",
-    "respi_constants.R_tb": 0.3063,
-    "respi_constants.C_A": 0.2,
-    "respi_constants.UV_A": 1.263,
-    "respi_constants.R_bA": 0.0817,
-    "cardio_parameters.elastance.min.0": 1.43,
-    "cardio_parameters.elastance.min.1": 0.6,
-    "cardio_parameters.elastance.min.2": 0.0169,
-    "cardio_parameters.elastance.min.3": 0.0182,
-    "cardio_parameters.elastance.min.4": 0.05,
-    "cardio_parameters.elastance.min.5": 0.057,
-    "cardio_parameters.elastance.min.6": 0.233,
-    "cardio_parameters.elastance.min.7": 0.0455,
-    "cardio_parameters.elastance.min.8": 0.12,
-    "cardio_parameters.elastance.min.9": 0.09,
-    "cardio_parameters.elastance.max.0": null,
-    "cardio_parameters.elastance.max.1": null,
-    "cardio_parameters.elastance.max.2": null,
-    "cardio_parameters.elastance.max.3": null,
-    "cardio_parameters.elastance.max.4": {
-        "value": 0.15,
-        "min": 0.01,
+    "respi_constants.R_tb": {
+        "value": 0.3063,
+        "min": 0.1,
+        "max": 1
+    },
+    "respi_constants.C_A": {
+        "value": 0.2,
+        "min": 0.05,
+        "max": 0.5
+    },
+    "respi_constants.UV_A": {
+        "value": 1.263,
+        "min": 0.5,
+        "max": 3
+    },
+    "respi_constants.R_bA": {
+        "value": 0.0817,
+        "min": 0.02,
         "max": 0.3
     },
-    "cardio_parameters.elastance.max.5": 0.49,
-    "cardio_parameters.elastance.max.6": null,
-    "cardio_parameters.elastance.max.7": null,
-    "cardio_parameters.elastance.max.8": 0.28,
-    "cardio_parameters.elastance.max.9": 4.0,
 
-    "cardio_parameters.resistance[0]": 0.06,
-    "cardio_parameters.resistance[1]": 0.85,
-    "cardio_parameters.resistance[2]": 0.09,
-    "cardio_parameters.resistance[3]": 0.003,
-    "cardio_parameters.resistance[4]": 0.003,
-    "cardio_parameters.resistance[5]": 0.003,
-    "cardio_parameters.resistance[6]": 0.11,
-    "cardio_parameters.resistance[7]": 0.003,
-    "cardio_parameters.resistance[8]": 0.003,
-    "cardio_parameters.resistance[9]": 0.008,
-    "cardio_parameters.uvolume[0]": 140,
-    "cardio_parameters.uvolume[1]": 370,
-    "cardio_parameters.uvolume[2]": 1000,
-    "cardio_parameters.uvolume[3]": 1190,
-    "cardio_parameters.uvolume[4]": 14,
-    "cardio_parameters.uvolume[5]": 26,
-    "cardio_parameters.uvolume[6]": 50,
-    "cardio_parameters.uvolume[7]": 350,
-    "cardio_parameters.uvolume[8]": 11,
-    "cardio_parameters.uvolume[9]": 20,
-    "gas_exchange_params.FI_O2": 0.21,
-    "gas_exchange_params.FI_CO2": 0.0004,
+
+   "cardio_parameters.elastance.min.0": {
+        "value": 1.43,
+        "min": 1.43,
+        "max": 1.43
+    },
+    "cardio_parameters.elastance.min.1": {
+        "value": 0.6,
+        "min": 0.6,
+        "max": 0.6
+    },
+    "cardio_parameters.elastance.min.2": {
+        "value": 0.0169,
+        "min": 0.0169,
+        "max": 0.0169
+    },
+    "cardio_parameters.elastance.min.3": {
+        "value": 0.0182,
+        "min": 0.0182,
+        "max": 0.0182
+    },
+    "cardio_parameters.elastance.min.4": {
+        "value": 0.05,
+        "min": 0.05,
+        "max": 0.05
+    },
+    "cardio_parameters.elastance.min.5": {
+        "value": 0.057,
+        "min": 0.057,
+        "max": 0.057
+    },
+
+    "cardio_parameters.elastance.min.6": {
+        "value": 0.233,
+        "min": 0.1,
+        "max": 0.5
+    },
+    "cardio_parameters.elastance.min.7": {
+        "value": 0.0455,
+        "min": 0.0455,
+        "max": 0.0455
+    },
+    "cardio_parameters.elastance.min.8": {
+        "value": 0.12,
+        "min": 0.12,
+        "max": 0.12
+    },
+    "cardio_parameters.elastance.min.9": {
+        "value": 0.09,
+        "min": 0.05,
+        "max": 0.4
+    },
+
+    "cardio_parameters.elastance.max.0": {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.1":  {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.2":  {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.3":   {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.4":   {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.5": {
+        "value": 0.49,
+        "min": 0.49,
+        "max": 0.49
+    },
+    "cardio_parameters.elastance.max.6": {
+        "value": 1.43,
+        "min": 1,
+        "max": 4
+    },
+    "cardio_parameters.elastance.max.7": {
+        "value": null,
+        "min": null,
+        "max": null
+    },
+    "cardio_parameters.elastance.max.8": {
+        "value": 0.28,
+        "min": 0.28,
+        "max": 0.28
+    },
+    "cardio_parameters.elastance.max.9": {
+        "value": 4,
+        "min": 2,
+        "max": 8
+    },
+
+    "cardio_parameters.resistance.0": {
+        "value": 0.06,
+        "min": 0.01,
+        "max": 0.2
+    },
+    "cardio_parameters.resistance.1": {
+        "value": 0.85,
+        "min": 0.5,
+        "max": 2
+    },
+    "cardio_parameters.resistance.2": {
+        "value": 0.09,
+        "min": 0.05,
+        "max": 0.2
+    },
+    "cardio_parameters.resistance.3": {
+        "value": 0.003,
+        "min": 0.001,
+        "max": 0.01
+    },
+    "cardio_parameters.resistance.4": {
+        "value": 0.003,
+        "min": 0.001,
+        "max": 0.01
+    },
+    "cardio_parameters.resistance.5": {
+        "value": 0.003,
+        "min": 0.001,
+        "max": 0.01
+    },
+    "cardio_parameters.resistance.6": {
+        "value": 0.11,
+        "min": 0.05,
+        "max": 0.2
+    },
+    "cardio_parameters.resistance.7": {
+        "value": 0.003,
+        "min": 0.001,
+        "max": 0.01
+    },
+    "cardio_parameters.resistance.8": {
+        "value": 0.003,
+        "min": 0.001,
+        "max": 0.01
+    },
+    "cardio_parameters.resistance.9": {
+        "value": 0.008,
+        "min": 0.001,
+        "max": 0.01
+    },
+
+
+    "cardio_parameters.uvolume.0": {
+        "value": 140,
+        "min": 50,
+        "max": 200
+    },
+    "cardio_parameters.uvolume.1": {
+        "value": 370,
+        "min": 100,
+        "max": 500
+    },
+    "cardio_parameters.uvolume.2": {
+        "value": 1000,
+        "min": 500,
+        "max": 1500
+    },
+    "cardio_parameters.uvolume.3": {
+        "value": 1190,
+        "min": 500,
+        "max": 1500
+    },
+    "cardio_parameters.uvolume.4": {
+        "value": 14,
+        "min": 5,
+        "max": 20
+    },
+    "cardio_parameters.uvolume.5": {
+        "value": 26,
+        "min": 10,
+        "max": 50
+    },
+    "cardio_parameters.uvolume.6": {
+        "value": 50,
+        "min": 20,
+        "max": 100
+    },
+    "cardio_parameters.uvolume.7": {
+        "value": 350,
+        "min": 100,
+        "max": 500
+    },
+    "cardio_parameters.uvolume.8": {
+        "value": 11,
+        "min": 5,
+        "max": 20
+    },
+    "cardio_parameters.uvolume.9": {
+        "value": 20,
+        "min": 10,
+        "max": 50
+    },
+
+
+    
+    "gas_exchange_params.FI_O2": {
+        "value": 0.21,
+        "min": 0.21,
+        "max": 1
+    },
+    "gas_exchange_params.FI_CO2": {
+        "value": 0.0004,
+        "min": 0.0004,
+        "max": 0.0004
+    },
     "gas_exchange_params.FA_O2": "104 / 713",
     "gas_exchange_params.FA_CO2": "40 / 713",
-    "gas_exchange_params.V_D": 0.181,
-    "gas_exchange_params.V_A": 2.3,
+    "gas_exchange_params.V_D": {
+        "value": 0.181,
+        "min": 0.181,
+        "max": 0.181
+    },
+    "gas_exchange_params.V_A": {
+        "value": 2.3,
+        "min": 2.3,
+        "max": 2.3
+    },
     "gas_exchange_params.c_S_O2": "c_Scap_O2",
     "gas_exchange_params.c_S_CO2": "c_Scap_CO2",
     "gas_exchange_params.c_B_O2": "c_Bcap_O2",
@@ -117,48 +442,154 @@
     "gas_exchange_params.D_S_O2": "D_T_O2",
     "gas_exchange_params.D_B_CO2": "D_T_CO2",
     "gas_exchange_params.D_B_O2": "D_T_O2",
-    "derived_gas_exchange_params.c_v_CO2": "(c_Stis_CO2 * q_S + c_Btis_CO2 * q_Bv) / (q_S + q_Bv)",
-    "derived_gas_exchange_params.c_v_O2": "(c_Stis_O2 * q_S + c_Btis_O2 * q_Bv) / (q_S + q_Bv)",
-    "derived_gas_exchange_params.c_a_CO2": "K_CO2 * p_a_CO2 + k_CO2",
-    "derived_gas_exchange_params.c_a_O2": "K_O2 * (1 - exp(-k_O2 * min(p_a_O2, 700)))**2",
-    "respiratory_control_params.PaCO2_n": 40,
-    "respiratory_control_params.Gp_A": -6,
-    "respiratory_control_params.Gp_f": 0.8735,
-    "respiratory_control_params.Gc_A": -2,
-    "respiratory_control_params.Gc_f": 0.9,
-    "respiratory_control_params.tau_p_A": 83,
-    "respiratory_control_params.tau_p_f": 147.78,
-    "respiratory_control_params.tau_c_A": 105,
-    "respiratory_control_params.tau_c_f": 400,
-    "respiratory_control_params.RR_0": 12,
-    "respiratory_control_params.Pmus_0": -5,
-    "respiratory_control_params.Delta_RR_c": 0,
-    "respiratory_control_params.Delta_RR_p": 0,
-    "respiratory_control_params.Delta_Pmus_c": 0,
-    "respiratory_control_params.Delta_Pmus_p": 0,
-    "respiratory_control_params.f_acp_n": 3.7,
-    "cardio_control_params.ABP_n": 85,
-    "cardio_control_params.HR_n": 70,
-    "cardio_control_params.R_n": 1,
-    "cardio_control_params.UV_n": 1,
-    "cardio_control_params.R_c": 1,
-    "cardio_control_params.UV_c": 1,
-    "cardio_control_params.Gc_hr": 0.9,
-    "cardio_control_params.Gc_r": 0.05,
-    "cardio_control_params.Gc_uv": 0.05,
-    "cardio_control_params.tau_hr": 105,
-    "cardio_control_params.tau_r": 205,
-    "cardio_control_params.tau_uv": 205,
-    "misc_constants.MV": 0,
-    "misc_constants.P_vent": 0,
-    "misc_constants.Hgb": 15,
-    "misc_constants.HR": 70,
-    "misc_constants.RR": 12,
-    "misc_constants.Pintra_t0": -4,
-    "misc_constants.RRP": "60 / RR",
-    "misc_constants.TBV": 5000,
-    "misc_constants.T": 0.01,
-    "misc_constants.tmin": 0.0,
-    "misc_constants.tmax": 160.0,
-    "misc_constants.ncc": 1
+    "respiratory_control_params.PaCO2_n": {
+        "value": 40,
+        "min": 40,
+        "max": 40
+    },
+    "respiratory_control_params.Gp_A": {
+        "value": -6,
+        "min": -6,
+        "max": -6
+    },
+    "respiratory_control_params.Gp_f": {
+        "value": 0.8735,
+        "min": 0.8735,
+        "max": 0.8735
+    },
+    "respiratory_control_params.Gc_A": {
+        "value": -2,
+        "min": -2,
+        "max": -2
+    },
+    "respiratory_control_params.Gc_f": {
+        "value": 0.9,
+        "min": 0.9,
+        "max": 0.9
+    },
+    "respiratory_control_params.tau_p_A": {
+        "value": 83,
+        "min": 83,
+        "max": 83
+    },
+    "respiratory_control_params.tau_p_f": {
+        "value": 147.78,
+        "min": 147.78,
+        "max": 147.78
+    },
+    "respiratory_control_params.tau_c_A": {
+        "value": 105,
+        "min": 105,
+        "max": 105
+    },
+    "respiratory_control_params.tau_c_f": {
+        "value": 400,
+        "min": 400,
+        "max": 400
+    },
+    "respiratory_control_params.RR_0": {
+        "value": 12,
+        "min": 6,
+        "max": 36
+    },
+    "respiratory_control_params.Pmus_0": {
+        "value": -5,
+        "min": -15,
+        "max": 0
+    },
+    "respiratory_control_params.Delta_RR_c": {
+        "value": 0,
+        "min": 0,
+        "max": 0
+    },
+    "respiratory_control_params.Delta_RR_p": {
+        "value": 0,
+        "min": 0,
+        "max": 0
+    },
+    "respiratory_control_params.Delta_Pmus_c": {
+        "value": 0,
+        "min": 0,
+        "max": 0
+    },
+    "respiratory_control_params.Delta_Pmus_p": {
+        "value": 0,
+        "min": 0,
+        "max": 0
+    },
+    "respiratory_control_params.f_acp_n": {
+        "value": 3.7,
+        "min": 1,
+        "max": 8
+    },
+    "cardio_control_params.ABP_n": {
+        "value": 85,
+        "min": 40,
+        "max": 140
+    },
+    "cardio_control_params.HR_n": {
+        "value": 70,
+        "min": 40,
+        "max": 210
+    },
+    "cardio_control_params.R_n": {
+        "value": 1,
+        "min": 0.5,
+        "max": 2
+    },
+    "cardio_control_params.UV_n": {
+        "value": 1,
+        "min": 0.5,
+        "max": 2
+    },
+    "cardio_control_params.R_c": {
+        "value": 1,
+        "min": 0.5,
+        "max": 2
+    },
+    "cardio_control_params.UV_c": {
+        "value": 1,
+        "min": 0.5,
+        "max": 2
+    },
+    "cardio_control_params.Gc_hr": {
+        "value": 0.9,
+        "min": 0.1,
+        "max": 2
+    },
+    "cardio_control_params.Gc_r": {
+        "value": 0.05,
+        "min": 0.01,
+        "max": 0.2
+    },
+    "cardio_control_params.Gc_uv": {
+        "value": 0.05,
+        "min": 0.01,
+        "max": 0.2
+    },
+    "cardio_control_params.tau_hr": {
+        "value": 105,
+        "min": 50,
+        "max": 200
+    },
+    "cardio_control_params.tau_r": {
+        "value": 205,
+        "min": 100,
+        "max": 400
+    },
+    "cardio_control_params.tau_uv": {
+        "value": 205,
+        "min": 100,
+        "max": 400
+    },
+    "misc_constants.Hgb": {
+        "value": 15,
+        "min": 6,
+        "max": 22
+    },
+    "misc_constants.Pintra_t0": {
+        "value": -4,
+        "min": -10,
+        "max": 0
+    }
 }
