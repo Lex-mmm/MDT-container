@@ -215,7 +215,7 @@ class DigitalTwinModel:
             vaf = np.sin(np.pi * (ncc - (Tas + Tav) / T) / (Tvs / T))
         else:
             vaf = 0
-
+        #print(f"Current state of elastance: {self.elastance[1,9]}")
         elv = self.elastance[0, 9] + (self.elastance[1, 9] - self.elastance[0, 9]) * vaf
         erv = self.elastance[0, 5] + (self.elastance[1, 5] - self.elastance[0, 5]) * vaf
 
@@ -522,6 +522,7 @@ class DigitalTwinModel:
                 event = singularEvent['disease']
                 eventSeverity = singularEvent['severity']
                 self.initializeEvent(event, eventSeverity)
+                self.events.remove(singularEvent)  # Remove the event after processing
 
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
@@ -587,9 +588,15 @@ class DigitalTwinModel:
         ## Solve event state variables, update if necessary
         updatedParameters = self.pathologies.solveEvent(event, eventSeverity, self.master_parameters)
         if updatedParameters:
-            ## Update the parameters in the model for next solver iteration
-            self.MasterParameters = updatedParameters
+            ## Update the parameters in the model foradd_disease next solver iteration
+            self.master_parameters = updatedParameters
 
+            cardio_elastance_min = [key for key in self.master_parameters if 'cardio' in key and 'min' in key and 'elastance' in key]
+            cardio_elastance_max = [key for key in self.master_parameters if 'cardio' in key and 'max' in key and 'elastance' in key]
+
+            self.elastance = np.array([ [self.master_parameters[key]['value'] for key in cardio_elastance_min], 
+                             [self.master_parameters[key]['value'] for key in cardio_elastance_max]])
+            
     def stop_simulation(self):
         """Stop the simulation loop."""
         if self.running:

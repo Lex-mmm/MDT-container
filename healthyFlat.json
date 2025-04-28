@@ -304,7 +304,7 @@
     },
     "cardio_parameters.elastance.max.9": {
         "value": 4,
-        "min": 2,
+        "min": 0.2,
         "max": 8
     },
 

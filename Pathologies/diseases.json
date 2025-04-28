@@ -3,7 +3,7 @@
         "cardio_parameters.elastance.max.9": -50
     },
     "severity_2":{
-        "cardio_parameters.elastance.max.9": -75
+        "cardio_parameters.elastance.max.9": -100
     }
 }
 }
