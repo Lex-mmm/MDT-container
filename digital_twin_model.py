@@ -60,7 +60,7 @@ class DigitalTwinModel:
             self.params = config.get("params", {})
             self.initial_conditions = config.get("initial_conditions", {})
             self.bloodflows = config.get("bloodflows", {})
-            self.cardio_constants = config.get("cardio_constants", {})
+            self.respi_constants = config.get("respi_constants", {})
             self.cardio_parameters = config.get("cardio_parameters", {})
             self.gas_exchange_params = config.get("gas_exchange_params", {})
             self.derived_gas_exchange_params = config.get("derived_gas_exchange_params", {})
@@ -88,7 +88,7 @@ class DigitalTwinModel:
             self.params,
             self.initial_conditions,
             self.bloodflows,
-            self.cardio_constants,
+            self.respi_constants,
             self.cardio_parameters,
             self.gas_exchange_params,
             self.derived_gas_exchange_params,
@@ -169,15 +169,15 @@ class DigitalTwinModel:
         self.C_cw = 0.2445  # l/cmH2O
 
         self.A_mechanical = np.array([
-            [-1 / (self.cardio_constants['C_l'] * self.cardio_constants['R_ml']) - 1 / (self.cardio_constants['R_lt'] * self.cardio_constants['C_l']), 1 / (self.cardio_constants['R_lt'] * self.cardio_constants['C_l']), 0, 0, 0],
-            [1 / (self.cardio_constants['R_lt'] * self.cardio_constants['C_tr']), -1 / (self.cardio_constants['C_tr'] * self.cardio_constants['R_lt']) - 1 / (self.cardio_constants['R_tb'] * self.cardio_constants['C_tr']), 1 / (self.cardio_constants['R_tb'] * self.cardio_constants['C_tr']), 0, 0],
-            [0, 1 / (self.cardio_constants['R_tb'] * self.cardio_constants['C_b']), -1 / (self.cardio_constants['C_b'] * self.cardio_constants['R_tb']) - 1 / (self.cardio_constants['R_bA'] * self.cardio_constants['C_b']), 1 / (self.cardio_constants['R_bA'] * self.cardio_constants['C_b']), 0],
-            [0, 0, 1 / (self.cardio_constants['R_bA'] * self.cardio_constants['C_A']), -1 / (self.cardio_constants['C_A'] * self.cardio_constants['R_bA']), 0],
-            [1 / (self.cardio_constants['R_lt'] * self.C_cw), -1 / (self.C_cw * self.cardio_constants['R_lt']), 0, 0, 0]
+            [-1 / (self.respi_constants['C_l'] * self.respi_constants['R_ml']) - 1 / (self.respi_constants['R_lt'] * self.respi_constants['C_l']), 1 / (self.respi_constants['R_lt'] * self.respi_constants['C_l']), 0, 0, 0],
+            [1 / (self.respi_constants['R_lt'] * self.respi_constants['C_tr']), -1 / (self.respi_constants['C_tr'] * self.respi_constants['R_lt']) - 1 / (self.respi_constants['R_tb'] * self.respi_constants['C_tr']), 1 / (self.respi_constants['R_tb'] * self.respi_constants['C_tr']), 0, 0],
+            [0, 1 / (self.respi_constants['R_tb'] * self.respi_constants['C_b']), -1 / (self.respi_constants['C_b'] * self.respi_constants['R_tb']) - 1 / (self.respi_constants['R_bA'] * self.respi_constants['C_b']), 1 / (self.respi_constants['R_bA'] * self.respi_constants['C_b']), 0],
+            [0, 0, 1 / (self.respi_constants['R_bA'] * self.respi_constants['C_A']), -1 / (self.respi_constants['C_A'] * self.respi_constants['R_bA']), 0],
+            [1 / (self.respi_constants['R_lt'] * self.C_cw), -1 / (self.C_cw * self.respi_constants['R_lt']), 0, 0, 0]
         ])
 
         self.B_mechanical = np.array([
-            [1 / (self.cardio_constants['R_ml'] * self.cardio_constants['C_l']), 0, 0],
+            [1 / (self.respi_constants['R_ml'] * self.respi_constants['C_l']), 0, 0],
             [0, 1, 0],
             [0, 1, 0],
             [0, 1, 0],
@@ -455,12 +455,12 @@ class DigitalTwinModel:
 
         # Compute mechanical derivatives
         Pmus_dt = driver[1]
-        Ppl_dt = (mechanical_states[0] / (self.cardio_constants['R_lt'] * self.C_cw)) - (mechanical_states[1] / (self.C_cw * self.cardio_constants['R_lt'])) + Pmus_dt
+        Ppl_dt = (mechanical_states[0] / (self.respi_constants['R_lt'] * self.C_cw)) - (mechanical_states[1] / (self.C_cw * self.respi_constants['R_lt'])) + Pmus_dt
         dxdt_mechanical = np.dot(self.A_mechanical, mechanical_states) + np.dot(self.B_mechanical, [P_ao, Ppl_dt, Pmus_dt])
 
         # Compute the ventilation rates based on pressures
-        Vdot_l = (P_ao - mechanical_states[0]) / self.cardio_constants['R_ml']
-        Vdot_A = (mechanical_states[2] - mechanical_states[3]) / self.cardio_constants['R_bA']
+        Vdot_l = (P_ao - mechanical_states[0]) / self.respi_constants['R_ml']
+        Vdot_A = (mechanical_states[2] - mechanical_states[3]) / self.respi_constants['R_bA']
 
         p_D_CO2 = FD_CO2 * 713
         p_D_O2 = FD_O2 * 713
@@ -580,7 +580,14 @@ class DigitalTwinModel:
             #print(self.P_store[0])
             # Print heart rate at intervals
             if self.t - last_print_time >= self.print_interval:
-                print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
+                # print MAP, SAP, DAP
+                MAP = np.mean(self.P_store[0])
+                SAP = np.max(self.P_store[0])
+                DAP = np.min(self.P_store[0])
+                RR = self.RR
+                Sa_O2 = self.current_SaO2
+                print(f"MAP, SAP, DAP, HR, SaO2, RR at time {self.t:.2f}s for patient {self.patient_id}: {MAP} {SAP} {DAP} {HR} {Sa_O2} {RR}")
+                #print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
                 last_print_time = self.t
 
             # Emit data to the client every 1 seconds = output_frequency
@@ -640,7 +647,7 @@ class DigitalTwinModel:
         if param.split('|')[0] == "resistance" or param.split('|')[0] == "uvolume" or param.split('|')[0] == "elastance":
             loc = int(param.split('|')[1]) -1 ## correct for 0'th position
             param = str(param.split('|')[0])
-        possibilities = ["params", "initial_conditions","cardio_parameters", "bloodflows", "cardio_constants", "gas_exchange_params", "respiratory_control_params", "cardio_control_params", "misc_constants"]
+        possibilities = ["params", "initial_conditions","cardio_parameters", "bloodflows", "respi_constants", "gas_exchange_params", "respiratory_control_params", "cardio_control_params", "misc_constants"]
         for key in possibilities:
             attr = getattr(self, key)
             if param in attr.keys():
