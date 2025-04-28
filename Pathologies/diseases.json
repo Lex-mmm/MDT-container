@@ -1,13 +1,9 @@
 {"myocardialInfarction":{
     "severity_1":{
-        "gas_exchange_params.FI_O2": -50
+        "cardio_parameters.elastance.max.9": -50
     },
     "severity_2":{
-        "gas_exchange_params.FI_O2": 50
-    },
-    "severity_3":{
-        "paramName1":"paramValue1",
-        "paramName2":"paramValue2"
+        "cardio_parameters.elastance.max.9": -75
     }
 }
 }
