@@ -30,4 +30,11 @@ def spline():
     plt.grid()
     plt.show()
 
-test(None)
+import datetime
+from datetime import timedelta
+datetime1 = datetime.datetime(2023, 10, 1, 12, 0)
+datetime2 = datetime.datetime(2023, 10, 1, 12, 5)
+## Timedelta in seconds
+timedelta = datetime2 - datetime1
+print(timedelta.total_seconds())
+
