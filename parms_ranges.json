@@ -1,0 +1,302 @@
+{
+    "cardio_parameters": [
+        {
+            "parameter": "elastance",
+            "compart": 0.0,
+            "subcomp": 0.0,
+            "mean": 1.43,
+            "min": 1.0,
+            "max": 4.0
+        },
+        {
+            "parameter": "elastance",
+            "compart": 0.0,
+            "subcomp": 6.0,
+            "mean": 0.233,
+            "min": 0.1,
+            "max": 0.5
+        },
+        {
+            "parameter": "elastance",
+            "compart": 0.0,
+            "subcomp": 9.0,
+            "mean": 0.09,
+            "min": 0.05,
+            "max": 0.4
+        },
+        {
+            "parameter": "elastance",
+            "compart": 1.0,
+            "subcomp": 9.0,
+            "mean": 4.0,
+            "min": 2.0,
+            "max": 8.0
+        },
+        {
+            "parameter": "resistance",
+            "compart": 1.0,
+            "subcomp": null,
+            "mean": 0.85,
+            "min": 0.5,
+            "max": 2.0
+        },
+        {
+            "parameter": "resistance",
+            "compart": 2.0,
+            "subcomp": null,
+            "mean": 0.09,
+            "min": 0.05,
+            "max": 0.2
+        },
+        {
+            "parameter": "resistance",
+            "compart": 3.0,
+            "subcomp": null,
+            "mean": 0.003,
+            "min": 0.001,
+            "max": 0.01
+        },
+        {
+            "parameter": "resistance",
+            "compart": 6.0,
+            "subcomp": null,
+            "mean": 0.11,
+            "min": 0.05,
+            "max": 0.2
+        },
+        {
+            "parameter": "uvolume",
+            "compart": 2.0,
+            "subcomp": null,
+            "mean": 1000.0,
+            "min": 500.0,
+            "max": 2000.0
+        },
+        {
+            "parameter": "uvolume",
+            "compart": 3.0,
+            "subcomp": null,
+            "mean": 1190.0,
+            "min": 500.0,
+            "max": 2000.0
+        }
+    ],
+    "gas_exchange_params": [
+        {
+            "parameter": "FI_O2",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.21,
+            "min": 0.21,
+            "max": 1.0
+        }
+    ],
+    "respiratory_control_params": [
+        {
+            "parameter": "RR_0",
+            "compart": null,
+            "subcomp": null,
+            "mean": 12.0,
+            "min": 6.0,
+            "max": 36.0
+        },
+        {
+            "parameter": "Pmus_0",
+            "compart": null,
+            "subcomp": null,
+            "mean": -5.0,
+            "min": -15.0,
+            "max": 0.0
+        },
+        {
+            "parameter": "f_acp_n",
+            "compart": null,
+            "subcomp": null,
+            "mean": 3.7,
+            "min": 1.0,
+            "max": 8.0
+        }
+    ],
+    "cardio_control_params": [
+        {
+            "parameter": "ABP_n",
+            "compart": null,
+            "subcomp": null,
+            "mean": 85.0,
+            "min": 40.0,
+            "max": 140.0
+        },
+        {
+            "parameter": "HR_n",
+            "compart": null,
+            "subcomp": null,
+            "mean": 70.0,
+            "min": 40.0,
+            "max": 210.0
+        },
+        {
+            "parameter": "R_n",
+            "compart": null,
+            "subcomp": null,
+            "mean": 1.0,
+            "min": 0.5,
+            "max": 2.0
+        },
+        {
+            "parameter": "UV_n",
+            "compart": null,
+            "subcomp": null,
+            "mean": 1.0,
+            "min": 0.5,
+            "max": 2.0
+        },
+        {
+            "parameter": "R_c",
+            "compart": null,
+            "subcomp": null,
+            "mean": 1.0,
+            "min": 0.5,
+            "max": 2.0
+        },
+        {
+            "parameter": "UV_c",
+            "compart": null,
+            "subcomp": null,
+            "mean": 1.0,
+            "min": 0.5,
+            "max": 2.0
+        },
+        {
+            "parameter": "Gc_hr",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.9,
+            "min": 0.1,
+            "max": 2.0
+        },
+        {
+            "parameter": "Gc_r",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.05,
+            "min": 0.01,
+            "max": 0.2
+        },
+        {
+            "parameter": "Gc_uv",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.05,
+            "min": 0.01,
+            "max": 0.2
+        },
+        {
+            "parameter": "tau_hr",
+            "compart": null,
+            "subcomp": null,
+            "mean": 105.0,
+            "min": 50.0,
+            "max": 200.0
+        },
+        {
+            "parameter": "tau_r",
+            "compart": null,
+            "subcomp": null,
+            "mean": 205.0,
+            "min": 100.0,
+            "max": 400.0
+        },
+        {
+            "parameter": "tau_uv",
+            "compart": null,
+            "subcomp": null,
+            "mean": 205.0,
+            "min": 100.0,
+            "max": 400.0
+        }
+    ],
+    "misc_constants": [
+        {
+            "parameter": "Hgb",
+            "compart": null,
+            "subcomp": null,
+            "mean": 15.0,
+            "min": 6.0,
+            "max": 22.0
+        },
+        {
+            "parameter": "Pintra_t0",
+            "compart": null,
+            "subcomp": null,
+            "mean": -4.0,
+            "min": -10.0,
+            "max": 0.0
+        }
+    ],
+    "respi_constants": [
+        {
+            "parameter": "C_l",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.00127,
+            "min": 0.0001,
+            "max": 0.005
+        },
+        {
+            "parameter": "C_tr",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.00238,
+            "min": 0.001,
+            "max": 0.005
+        },
+        {
+            "parameter": "R_lt",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.3369,
+            "min": 0.1,
+            "max": 2.0
+        },
+        {
+            "parameter": "C_b",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.0131,
+            "min": 0.005,
+            "max": 0.03
+        },
+        {
+            "parameter": "R_tb",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.3063,
+            "min": 0.1,
+            "max": 1.0
+        },
+        {
+            "parameter": "C_A",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.2,
+            "min": 0.05,
+            "max": 0.5
+        },
+        {
+            "parameter": "UV_A",
+            "compart": null,
+            "subcomp": null,
+            "mean": 1.263,
+            "min": 0.5,
+            "max": 3.0
+        },
+        {
+            "parameter": "R_bA",
+            "compart": null,
+            "subcomp": null,
+            "mean": 0.0817,
+            "min": 0.02,
+            "max": 0.3
+        }
+    ]
+}
