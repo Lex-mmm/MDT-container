@@ -197,27 +197,6 @@
         "min": 0.112,
         "max": 0.112
     },
-    "initial_conditions.c_Scap_CO2": {
-        "value": "0.543 - M_S_CO2 / D_T_CO2",
-        "min": "0.543 - M_S_CO2 / D_T_CO2",
-        "max": "0.543 - M_S_CO2 / D_T_CO2"
-    },
-    "initial_conditions.c_Scap_O2": {
-        "value": "0.128 + M_S_O2 / D_T_O2",
-        "min": "0.128 + M_S_O2 / D_T_O2",
-        "max": "0.128 + M_S_O2 / D_T_O2"
-    },
-    "initial_conditions.c_Bcap_CO2": {
-        "value": "0.569 - M_B_CO2 / D_T_CO2",
-        "min": "0.569 - M_B_CO2 / D_T_CO2",
-        "max": "0.569 - M_B_CO2 / D_T_CO2"
-    },
-    "initial_conditions.c_Bcap_O2": {
-        "value": "0.112 + M_B_O2 / D_T_O2",
-        "min": "0.112 + M_B_O2 / D_T_O2",
-        "max": "0.112 + M_B_O2 / D_T_O2"
-    },
-
     "bloodflows.CO": {
         "value": 84.5,
         "min": 84.5,
@@ -510,11 +489,6 @@
         "min": 0.0004,
         "max": 0.0004
     },
-    "gas_exchange_params.FA_O2": {
-        "value": "104 / 713",
-        "min": "104 / 713",
-        "max": "104 / 713"
-    },
     "gas_exchange_params.FA_CO2": {
         "value": 0.056,
         "min": 0.056,
@@ -530,27 +504,6 @@
         "min": 2.3,
         "max": 2.3
     },
-    "gas_exchange_params.c_S_O2": {
-        "value": "c_Scap_O2",
-        "min": "c_Scap_O2",
-        "max": "c_Scap_O2"
-    },
-    "gas_exchange_params.c_S_CO2": {
-        "value": "c_Scap_CO2",
-        "min": "c_Scap_CO2",
-        "max": "c_Scap_CO2"
-    },
-    "gas_exchange_params.c_B_O2": {
-        "value": "c_Bcap_O2",
-        "min": "c_Bcap_O2",
-        "max": "c_Bcap_O2"
-    },
-    "gas_exchange_params.c_B_CO2": {
-        "value": "c_Bcap_CO2",
-        "min": "c_Bcap_CO2",
-        "max": "c_Bcap_CO2"
-    },
-
     "respiratory_control_params.PaCO2_n": {
         "value": 40,
         "min": 40,
