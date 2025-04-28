@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
-from Alarms.alarm_check import Alarms  # Import alarm-generation class
+
 from Inference.inference_calc import Inference  # Import inference-generation class
 import json
 
@@ -22,9 +22,7 @@ class Patient:
         self.running = False
         self.data_epoch = []
         self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
-                                    alarm_callback = Alarms(self.patient_id),
-                                    sleep=sleep)
-        self.alarms = []
+                                     sleep=sleep)
 
     def startup(self):
         """Start the simulation."""

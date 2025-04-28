@@ -22,8 +22,6 @@ class DigitalTwinModel:
         self.dt = time_step  # Time step
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
-        self.alarm_callback = alarm_callback  # Callback function to emit alarms
-        self.alarms = []
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
 
         ## Integrate starting levels of measurement uncertainty
@@ -584,11 +582,8 @@ class DigitalTwinModel:
                     } }
                 ## Do inference checks, add to existing values
                 data['values'] = self.inference.check_inference(data['values'] ) 
-                ## Do alarm checks
-                alarm_output = self.alarm_callback.check_alarms(data = data['values'], timestamp = data['time'])
-                if alarm_output:
-                    self.alarms.append(alarm_output)   ## Append alarm output to list
-                
+
+
                 ## Save latest data as epoch: Keep n data points for callback purposes
                 if len(self.data_epoch) == 0:
                     self.data_epoch = [data]
