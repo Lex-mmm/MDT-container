@@ -4,17 +4,7 @@
         "min": 5.2,
         "max": 5.2
     },
-    "params.M_S_CO2": {
-        "value": "M_CO2 - M_B_CO2",
-        "min": "M_CO2 - M_B_CO2",
-        "max": "M_CO2 - M_B_CO2"
-    },
 
-    "params.M_B_CO2": {
-        "value": "0.2 * M_O2",
-        "min": "0.2 * M_O2",
-        "max": "0.2 * M_O2"
-    },
     "params.V_Btis_O2": {
         "value": 1000,
         "min": 1000,
@@ -35,11 +25,6 @@
         "min": 83.2,
         "max": 83.2
     },
-    "params.M_CO2": {
-        "value": "0.85 * M_O2",
-        "min": "0.85 * M_O2",
-        "max": "0.85 * M_O2"
-    },
     "params.V_CO2": {
         "value": 15000,
         "min": 15000,
@@ -50,51 +35,11 @@
         "min": 6000,
         "max": 6000
     },
-    "params.M_B_O2": {
-        "value": "-0.2 * M_O2",
-        "min": "-0.2 * M_O2",
-        "max": "-0.2 * M_O2"
-    },
-    "params.M_S_O2": {
-        "value": "-5.2 - M_B_O2",
-        "min": "-5.2 - M_B_O2",
-        "max": "-5.2 - M_B_O2"
-    },
+
     "params.V_Btis_CO2": {
         "value": 900,
         "min": 900,
         "max": 900
-    },
-    "params.V_Stis_CO2": {
-        "value": "V_CO2 - V_Btis_CO2",
-        "min": "V_CO2 - V_Btis_CO2",
-        "max": "V_CO2 - V_Btis_CO2"
-    },
-    "params.V_Stis_O2": {
-        "value": "V_O2 - V_Btis_O2",
-        "min": "V_O2 - V_Btis_O2",
-        "max": "V_O2 - V_Btis_O2"
-    },
-    "params.V_Bcap_CO2": {
-        "value": "0.01 * V_Btis_CO2",
-        "min": "0.01 * V_Btis_CO2",
-        "max": "0.01 * V_Btis_CO2"
-    },
-    "params.V_Scap_CO2": {
-        "value": "0.01 * V_Stis_CO2",
-        "min": "0.01 * V_Stis_CO2",
-        "max": "0.01 * V_Stis_CO2"
-    },
-
-    "params.V_Bcap_O2": {
-        "value": "0.01 * V_Btis_O2",
-        "min": "0.01 * V_Btis_O2",
-        "max": "0.01 * V_Btis_O2"
-    },
-    "params.V_Scap_O2": {
-        "value": "0.01 * V_Stis_O2",
-        "min": "0.01 * V_Stis_O2",
-        "max": "0.01 * V_Stis_O2"
     },
 
 
@@ -124,17 +69,7 @@
         "max": 0.0025
     },
 
-    "params.D_T_CO2": {
-        "value": "9 / 60 * w / K_CO2",
-        "min": "9 / 60 * w / K_CO2",
-        "max": "9 / 60 * w / K_CO2"
-    },
 
-    "params.D_T_O2": {
-        "value": "9 / 60 * w / K_O2",
-        "min": "9 / 60 * w / K_O2",
-        "max": "9 / 60 * w / K_O2"
-    },
 
 
     "initial_conditions.p_d1_CO2": {
@@ -197,6 +132,9 @@
         "min": 0.112,
         "max": 0.112
     },
+
+
+
     "bloodflows.CO": {
         "value": 84.5,
         "min": 84.5,
