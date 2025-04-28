@@ -53,7 +53,13 @@ def add_disease():
     patient_id = request.args.get("patient_id")
     disease = request.args.get("disease")
     severity = request.args.get("severity")
+    print(f"Handling disease {disease} with severity {severity} for patient {patient_id}")
+    if patient_id not in twin_instances:
+        return jsonify({"error": f"Patient {patient_id} not found"}), 404
+        
     twin_instances[patient_id].add_disease(disease, severity) 
+    return jsonify({"Status": "Handled"})
+
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():
@@ -115,7 +121,7 @@ def set_param():
         return jsonify({"status": f"Parameter {param} changed to {value} for patient {patient_id}"})
 
 ## Call for getting alarms for the patient (last n=60)
-@app.get('/get_alarms')
+@app.get('/get_alarms3242')
 def get_alarms():
     """Get the alarms for a specific patient."""
     patient_id = request.args.get("patient_id")

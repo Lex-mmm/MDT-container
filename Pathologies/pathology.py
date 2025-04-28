@@ -12,8 +12,6 @@ class Pathology:
         
         self.splineFunctions = {}
         for parameter in splineParameters:
-            print(f"Parameter {parameter} with values: {splineParameters[parameter]}")
-
             self.splineFunctions[parameter] = self.splineSolver(splineParameters[parameter])
             ## Spline functionality returns the value for the given parameter
         
@@ -59,16 +57,17 @@ class Pathology:
         disease = self.diseases[event]
         if disease:
             diseaseParam = disease[f"severity_{eventSeverity}"]
-            print(diseaseParam)
+
             for paramName, paramValue in diseaseParam.items():
                 ## Get the spline function for the parameter
-                print(paramName, paramValue)
+
                 splineFunction = self.splineFunctions[paramName]
                 #self.plot_spline(splineFunction, 0, 100)
                 ## Get the value of the parameter
                 val = splineFunction(paramValue)
                 masterParameters[paramName]["value"] = val
             
+            print(f"Novel setting for {paramName} = {masterParameters[paramName]['value']}")
             return masterParameters
 
             ## change parameters in the master parameter file
