@@ -167,11 +167,11 @@ class DigitalTwinModel:
 
         self.M_B_CO2 = 0.2 * self.master_parameters['params.M_O2']['value']
         self.M_S_CO2 = (self.master_parameters['params.M_O2']['value'] *0.85 ) - self.M_B_CO2
-        self.D_T_CO2 = (9 / 60) * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_CO2']['value']
+        self.D_T_CO2 = 9 / 60 * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_CO2']['value']
         state[20] = 0.543 - self.M_S_CO2 / self.D_T_CO2 
 
         state[21] = self.master_parameters['initial_conditions.c_Stis_O2']['value']
-        self.D_T_O2 = (9 / 60) * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_O2_tau']['value']
+        self.D_T_O2 = 9 / 60 * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_O2_tau']['value']
         self.M_S_O2 = -5.2 - (-0.2 * self.master_parameters['params.M_O2']['value']) 
 
         state[22] = 0.128 - self.M_S_O2 / self.D_T_O2
@@ -441,8 +441,8 @@ class DigitalTwinModel:
             dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
             dFD_CO2_dt = Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
 
-            dp_a_CO2 = (863 * q_p * (1 - sh) * (c_v_CO2 - c_a_CO2) + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
-            dp_a_O2 = (863 * q_p * (1 - sh) * (c_v_O2 - c_a_O2) + Vdot_A * 1000 * (p_D_O2 - p_a_O2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
+            dp_a_CO2 = (863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_CO2 - c_a_CO2) + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
+            dp_a_O2 = (863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) + Vdot_A * 1000 * (p_D_O2 - p_a_O2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
         else:
             # Expiration
             dFD_O2_dt = Vdot_A * 1000 * (FD_O2 - FA_O2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
