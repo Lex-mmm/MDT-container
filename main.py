@@ -54,6 +54,7 @@ def add_disease():
     disease = request.args.get("disease")
     severity = request.args.get("severity")
     twin_instances[patient_id].add_disease(disease, severity) 
+    return jsonify({"status": f"Disease {disease} added with severity {severity} for patient {patient_id}"})
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():

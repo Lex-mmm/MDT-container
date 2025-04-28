@@ -1,0 +1,156 @@
+{"AlarmSettingThreshold":{
+    "HeartRate":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },        
+        "UpperLimit":100,
+        "LowerLimit":50
+    },
+    "OxygenSaturation":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },        
+        "UpperLimit":100,
+        "LowerLimit":90
+    },
+    "BloodPressureDiastolic":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },
+        "UpperLimit":120,
+        "LowerLimit":80
+    },
+    "BloodPressureSystolic":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },
+        "UpperLimit":140,
+        "LowerLimit":90
+    },
+    "BloodPressureMean":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },
+        "UpperLimit":100,
+        "LowerLimit":70
+    },
+    "RespiratoryRate":{
+        "Active":true,
+        "AlarmState": {
+            "HIGH":false,
+            "LOW":false
+        },
+        "UpperLimit":30,
+        "LowerLimit":10
+    }
+},
+"AlarmSettingAlgo":{
+    "HeartRate":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },        
+        "tightness": "average"
+    },
+    "OxygenSaturation":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },        
+        "tightness": "average"
+    },
+    "BloodPressureDiastolic":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },        
+        "tightness": "average"
+    },
+    "BloodPressureSystolic":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },        
+        "tightness": "average"
+    },
+    "BloodPressureMean":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },        
+        "tightness": "average"
+    },
+    "RespiratoryRate":{
+        "Active":true,
+        "AlarmState": {
+            "yellow": false,
+            "orange": false,
+            "red": false
+        },
+        "tightness": "average"
+    }
+},
+"AlgoTightness":{
+    "loose":{
+        "yellow": 500,
+        "orange": 5000,
+        "red": 50000
+    },
+    "average":{
+        "yellow": 250,
+        "orange": 2500,
+        "red": 25000
+    },
+    "tight":{
+        "yellow": 100,
+        "orange": 1000,
+        "red": 10000
+    }
+},
+"ReferenceRangeValues":{
+    "HeartRate":{
+        "UpperLimit":80,
+        "LowerLimit":60
+    },
+    "OxygenSaturation":{
+        "UpperLimit":98,
+        "LowerLimit":92
+    },
+    "BloodPressureDiastolic":{
+        "UpperLimit":120,
+        "LowerLimit":80
+    },
+    "BloodPressureSystolic":{
+        "UpperLimit":140,
+        "LowerLimit":90
+    },
+    "BloodPressureMean":{
+        "UpperLimit":100,
+        "LowerLimit":70
+    },
+    "RespiratoryRate":{
+        "UpperLimit":30,
+        "LowerLimit":10
+    }
+}
+}

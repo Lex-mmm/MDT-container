@@ -1,0 +1,136 @@
+{
+    "AlarmMessage":{
+        "HeartRate":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - Tachycard",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - Bradycard",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - HR Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - HR Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - HR Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        },
+        "OxygenSaturation":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - SpO2 HIGH",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - SpO2 LOW",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - SpO2 Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - SpO2 Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - SpO2 Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        },
+        "BloodPressureDiastolic":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - BPd HIGH",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - BPd LOW",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - BPd Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - BPd Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - BPd Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        },
+        "BloodPressureSystolic":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - ABPs HIGH",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - ABPs LOW",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - ABPs Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - ABPs Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - ABPs Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        },
+        "BloodPressureMean":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - ABPm HIGH",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - ABPm LOW",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - ABPm Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - ABPm Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - ABPm Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        },
+        "RespiratoryRate":{
+            "HIGH":{
+                "message": "PHILIPS MONITOR - RR HIGH",
+                "messagePriority": "MEDIUM"
+            },
+            "LOW":{
+                "message": "PHILIPS MONITOR - RR LOW",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_YELLOW":{
+                "message": "PHILIPS MONITOR - RR Yellow Envelop Triggered",
+                "messagePriority": "LOW"
+            },
+            "ENVELOP_ORANGE":{
+                "message": "PHILIPS MONITOR - RR Orange Envelop Triggered",
+                "messagePriority": "MEDIUM"
+            },
+            "ENVELOP_RED":{
+                "message": "PHILIPS MONITOR - RR Red Envelop Triggered",
+                "messagePriority": "HIGH"
+            }
+        }
+    }
+}
