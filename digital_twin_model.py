@@ -106,15 +106,22 @@ class DigitalTwinModel:
         self.C_cw = 0.2445  # l/cmH2O
 
         self.A_mechanical = np.array([
-            [-1 / (self.master_parameters['respi_constants.C_l']['value'] * self.master_parameters['respi_constants.R_ml']['value']) - 1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 0, 0, 0],
-            [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_tr']['value']), -1 / (self.master_parameters['respi_constants.C_tr']['value'] * self.master_parameters['respi_constants.R_lt']['value']) - 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 0, 0],
-            [0, 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_b']['value']), -1 / (self.master_parameters['respi_constants.C_b']['value'] * self.master_parameters['respi_constants.R_tb']['value']) - 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 0],
+            [-1 / (self.master_parameters['respi_constants.C_l']['value'] * ( 1.021 * 1.5 )) ## R_ml constant
+                     - 1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 
+                     1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 0, 0, 0],
+            [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_tr']['value']),
+                 -1 / (self.master_parameters['respi_constants.C_tr']['value'] * self.master_parameters['respi_constants.R_lt']['value']) - 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 
+                 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 0, 0],
+            [0, 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_b']['value']),
+             -1 / (self.master_parameters['respi_constants.C_b']['value'] * self.master_parameters['respi_constants.R_tb']['value']) - 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 
+             1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 0],
             [0, 0, 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_A']['value']), -1 / (self.master_parameters['respi_constants.C_A']['value'] * self.master_parameters['respi_constants.R_bA']['value']), 0],
             [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.C_cw), -1 / (self.C_cw * self.master_parameters['respi_constants.R_lt']['value']), 0, 0, 0]
         ])
 
         self.B_mechanical = np.array([
-            [1 / (self.master_parameters['respi_constants.R_ml']['value'] * self.master_parameters['respi_constants.C_l']['value']), 0, 0],
+            [1 / ( ( 1.021 * 1.5 ) ## R_ml constant
+                  * self.master_parameters['respi_constants.C_l']['value']), 0, 0],
             [0, 1, 0],
             [0, 1, 0],
             [0, 1, 0],
@@ -396,7 +403,7 @@ class DigitalTwinModel:
         dxdt_mechanical = np.dot(self.A_mechanical, mechanical_states) + np.dot(self.B_mechanical, [P_ao, Ppl_dt, Pmus_dt])
 
         # Compute the ventilation rates based on pressures
-        Vdot_l = (P_ao - mechanical_states[0]) / self.master_parameters['respi_constants.R_ml']['value']
+        Vdot_l = (P_ao - mechanical_states[0]) / (1.021 * 1.5) ## R_ml constant
         Vdot_A = (mechanical_states[2] - mechanical_states[3]) / self.master_parameters['respi_constants.R_bA']['value']
 
         p_D_CO2 = FD_CO2 * 713

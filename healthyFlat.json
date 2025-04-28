@@ -178,18 +178,6 @@
         "min": 0.02,
         "max": 0.02
     },
-    "bloodflows.q_Bv": {
-        "value": "0.2 * CO",
-        "min": "0.2 * CO",
-        "max": "0.2 * CO"
-    },
-    
-    "bloodflows.q_S": {
-        "value": "0.8 * CO",
-        "min": "0.8 * CO",
-        "max": "0.8 * CO"
-    },
-
 
     "respi_constants.C_l": {
         "value": 0.00127,
@@ -200,12 +188,6 @@
         "value": 0.0344,
         "min": 0.01,
         "max": 0.1
-    },
-    
-    "respi_constants.R_ml": {
-        "value": "1.021 * 1.5",
-        "min": 0.5,
-        "max": 2
     },
     "respi_constants.C_tr": {
         "value": 0.00238,
@@ -514,28 +496,6 @@
         "max": "c_Bcap_CO2"
     },
 
-
-    "gas_exchange_params.D_S_CO2": {
-        "value": "D_T_CO2",
-        "min": "D_T_CO2",
-        "max": "D_T_CO2"
-    },
-    "gas_exchange_params.D_S_O2": {
-        "value": "D_T_O2",
-        "min": "D_T_O2",
-        "max": "D_T_O2"
-    },
-    "gas_exchange_params.D_B_CO2": {
-        "value": "D_T_CO2",
-        "min": "D_T_CO2",
-        "max": "D_T_CO2"
-    },
-    "gas_exchange_params.D_B_O2": {
-        "value": "D_T_O2",
-        "min": "D_T_O2",
-        "max": "D_T_O2"
-    },
-
     "respiratory_control_params.PaCO2_n": {
         "value": 40,
         "min": 40,
@@ -701,10 +661,6 @@
         "value": 12,
         "min": 6,
         "max": 36
-    }, "misc_constants.RRP":{
-        "value": "60 / RR",
-        "min": "60 / RR",
-        "max": "60 / RR"
     }, "misc_constants.TBV":{
         "value": 5000,
         "min": 3000,
