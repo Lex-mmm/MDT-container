@@ -38,14 +38,29 @@ class Pathology:
                 splineFunction = self.splineFunctions[paramName]
                 ## Get the value of the parameter
                 diseaseParam[paramName] = splineFunction(paramValue)
-            
-            ## change parameters in the master parameter file
-            for paramName, paramValue in diseaseParam.items():
-                if paramName in masterParameters:
-                    masterParameters[paramName] = paramValue
-                else:
-                    print(f"Parameter {paramName} not found in master parameters")
 
+            ## change parameters in the master parameter file
+
+
+
+
+            
+    def update_nested_key(self, d, target_key, new_value):
+            
+        if isinstance(d, dict):
+            for key in d:
+                if key == target_key:
+                    d[key] = new_value
+                    return True  # Key found and updated
+                else:
+                    if self.update_nested_key(d[key], target_key, new_value):
+                        return True  # Key found deeper
+        elif isinstance(d, list):
+            for item in d:
+                if self.update_nested_key(item, target_key, new_value):
+                    return True  # Key found inside list
+        
+        return None  # Key not found at this level  
         
         
         

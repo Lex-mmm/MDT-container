@@ -1,6 +1,6 @@
 {"myocardialInfarction":{
     "severity_1":{
-        "paramName1":"paramValue1",
+        "":"paramValue1",
         "paramName2":"paramValue2"
     },
     "severity_2":{

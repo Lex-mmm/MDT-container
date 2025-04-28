@@ -556,8 +556,8 @@ class DigitalTwinModel:
             t_eval = [self.t + self.dt]  # Evaluate at the end of dt
 
             ## Starting computations, variables emitted - Check for disease progression
-            for singularEvent in self.events:
-                self.initializeEvent(singularEvent)
+            for singularEvent, singularEventSeverity in self.events:
+                self.initializeEvent(singularEvent, singularEventSeverity)
 
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
@@ -619,12 +619,12 @@ class DigitalTwinModel:
                 time.sleep(self.dt)  # Control simulation speed
 
 
-    def initializeEvent(self, event):
+    def initializeEvent(self, event, eventSeverity):
         ## Solve event state variables, update if necessary
-        updatedParameters = self.pathologies.solveEvent(event, self.MasterParameters)
+        updatedParameters = self.pathologies.solveEvent(event, eventSeverity, self.MasterParameters)
         if updatedParameters:
             ## Update the parameters in the model for next solver iteration
-            self.MasterParameters.update(updatedParameters)
+            self.MasterParameters = updatedParameters
 
 
 

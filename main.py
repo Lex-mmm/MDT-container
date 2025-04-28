@@ -35,9 +35,9 @@ class Patient:
         self.running = False
         self.model.stop_simulation()
 
-    def add_disease(self, disease):
+    def add_disease(self, disease, disease_severity):
         """Add a disease to the patient."""
-        self.model.add_disease(disease)
+        self.model.add_disease(disease, disease_severity)
 
 
 
