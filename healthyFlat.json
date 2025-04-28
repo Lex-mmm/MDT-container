@@ -4,8 +4,17 @@
         "min": 5.2,
         "max": 5.2
     },
-    "params.M_S_CO2": "M_CO2 - M_B_CO2",
-    "params.M_B_CO2": "0.2 * M_O2",
+    "params.M_S_CO2": {
+        "value": "M_CO2 - M_B_CO2",
+        "min": "M_CO2 - M_B_CO2",
+        "max": "M_CO2 - M_B_CO2"
+    },
+
+    "params.M_B_CO2": {
+        "value": "0.2 * M_O2",
+        "min": "0.2 * M_O2",
+        "max": "0.2 * M_O2"
+    },
     "params.V_Btis_O2": {
         "value": 1000,
         "min": 1000,
@@ -26,7 +35,11 @@
         "min": 83.2,
         "max": 83.2
     },
-    "params.M_CO2": "0.85 * M_O2",
+    "params.M_CO2": {
+        "value": "0.85 * M_O2",
+        "min": "0.85 * M_O2",
+        "max": "0.85 * M_O2"
+    },
     "params.V_CO2": {
         "value": 15000,
         "min": 15000,
@@ -37,19 +50,54 @@
         "min": 6000,
         "max": 6000
     },
-    "params.M_B_O2": "-0.2 * M_O2",
-    "params.M_S_O2": "-5.2 - M_B_O2",
+    "params.M_B_O2": {
+        "value": "-0.2 * M_O2",
+        "min": "-0.2 * M_O2",
+        "max": "-0.2 * M_O2"
+    },
+    "params.M_S_O2": {
+        "value": "-5.2 - M_B_O2",
+        "min": "-5.2 - M_B_O2",
+        "max": "-5.2 - M_B_O2"
+    },
     "params.V_Btis_CO2": {
         "value": 900,
         "min": 900,
         "max": 900
     },
-    "params.V_Stis_CO2": "V_CO2 - V_Btis_CO2",
-    "params.V_Stis_O2": "V_O2 - V_Btis_O2",
-    "params.V_Bcap_CO2": "0.01 * V_Btis_CO2",
-    "params.V_Scap_CO2": "0.01 * V_Stis_CO2",
-    "params.V_Bcap_O2": "0.01 * V_Btis_O2",
-    "params.V_Scap_O2": "0.01 * V_Stis_O2",
+    "params.V_Stis_CO2": {
+        "value": "V_CO2 - V_Btis_CO2",
+        "min": "V_CO2 - V_Btis_CO2",
+        "max": "V_CO2 - V_Btis_CO2"
+    },
+    "params.V_Stis_O2": {
+        "value": "V_O2 - V_Btis_O2",
+        "min": "V_O2 - V_Btis_O2",
+        "max": "V_O2 - V_Btis_O2"
+    },
+    "params.V_Bcap_CO2": {
+        "value": "0.01 * V_Btis_CO2",
+        "min": "0.01 * V_Btis_CO2",
+        "max": "0.01 * V_Btis_CO2"
+    },
+    "params.V_Scap_CO2": {
+        "value": "0.01 * V_Stis_CO2",
+        "min": "0.01 * V_Stis_CO2",
+        "max": "0.01 * V_Stis_CO2"
+    },
+
+    "params.V_Bcap_O2": {
+        "value": "0.01 * V_Btis_O2",
+        "min": "0.01 * V_Btis_O2",
+        "max": "0.01 * V_Btis_O2"
+    },
+    "params.V_Scap_O2": {
+        "value": "0.01 * V_Stis_O2",
+        "min": "0.01 * V_Stis_O2",
+        "max": "0.01 * V_Stis_O2"
+    },
+
+
     "params.K_O2": {
         "value": 0.2,
         "min": 0.2,
@@ -75,8 +123,20 @@
         "min": 0.0025,
         "max": 0.0025
     },
-    "params.D_T_CO2": "9 / 60 * w / K_CO2",
-    "params.D_T_O2": "9 / 60 * w / K_O2_tau",
+
+    "params.D_T_CO2": {
+        "value": "9 / 60 * w / K_CO2",
+        "min": "9 / 60 * w / K_CO2",
+        "max": "9 / 60 * w / K_CO2"
+    },
+
+    "params.D_T_O2": {
+        "value": "9 / 60 * w / K_O2",
+        "min": "9 / 60 * w / K_O2",
+        "max": "9 / 60 * w / K_O2"
+    },
+
+
     "initial_conditions.p_d1_CO2": {
         "value": 5,
         "min": 5,
@@ -137,10 +197,27 @@
         "min": 0.112,
         "max": 0.112
     },
-    "initial_conditions.c_Scap_CO2": "0.543 - M_S_CO2 / D_T_CO2",
-    "initial_conditions.c_Scap_O2": "0.128 + M_S_O2 / D_T_O2",
-    "initial_conditions.c_Bcap_CO2": "0.569 - M_B_CO2 / D_T_CO2",
-    "initial_conditions.c_Bcap_O2": "0.112 + M_B_O2 / D_T_O2",
+    "initial_conditions.c_Scap_CO2": {
+        "value": "0.543 - M_S_CO2 / D_T_CO2",
+        "min": "0.543 - M_S_CO2 / D_T_CO2",
+        "max": "0.543 - M_S_CO2 / D_T_CO2"
+    },
+    "initial_conditions.c_Scap_O2": {
+        "value": "0.128 + M_S_O2 / D_T_O2",
+        "min": "0.128 + M_S_O2 / D_T_O2",
+        "max": "0.128 + M_S_O2 / D_T_O2"
+    },
+    "initial_conditions.c_Bcap_CO2": {
+        "value": "0.569 - M_B_CO2 / D_T_CO2",
+        "min": "0.569 - M_B_CO2 / D_T_CO2",
+        "max": "0.569 - M_B_CO2 / D_T_CO2"
+    },
+    "initial_conditions.c_Bcap_O2": {
+        "value": "0.112 + M_B_O2 / D_T_O2",
+        "min": "0.112 + M_B_O2 / D_T_O2",
+        "max": "0.112 + M_B_O2 / D_T_O2"
+    },
+
     "bloodflows.CO": {
         "value": 84.5,
         "min": 84.5,
@@ -156,21 +233,46 @@
         "min": 0.02,
         "max": 0.02
     },
-    "bloodflows.q_Bv": "0.2 * CO",
-    "bloodflows.q_S": "0.8 * CO",
+    "bloodflows.q_Bv": {
+        "value": "0.2 * CO",
+        "min": "0.2 * CO",
+        "max": "0.2 * CO"
+    },
+    
+    "bloodflows.q_S": {
+        "value": "0.8 * CO",
+        "min": "0.8 * CO",
+        "max": "0.8 * CO"
+    },
+
+
     "respi_constants.C_l": {
         "value": 0.00127,
         "min": 0.0001,
         "max": 0.005
     },
-    "respi_constants.UV_l": "34.4 / 1000",
-    "respi_constants.R_ml": "1.021 * 1.5",
+    "respi_constants.UV_l": {
+        "value": 0.0344,
+        "min": 0.01,
+        "max": 0.1
+    },
+    
+    "respi_constants.R_ml": {
+        "value": "1.021 * 1.5",
+        "min": 0.5,
+        "max": 2
+    },
     "respi_constants.C_tr": {
         "value": 0.00238,
         "min": 0.001,
         "max": 0.005
     },
-    "respi_constants.UV_tr": "6.63 / 1000",
+    "respi_constants.UV_tr": {
+        "value": 0.00663,
+        "min": 0.002,
+        "max": 0.02
+    },
+
     "respi_constants.R_lt": {
         "value": 0.3369,
         "min": 0.1,
@@ -181,7 +283,11 @@
         "min": 0.005,
         "max": 0.03
     },
-    "respi_constants.UV_b": "18.7 / 1000",
+    "respi_constants.UV_b": {
+        "value": 0.0187,
+        "min": 0.005,
+        "max": 0.05
+    },
     "respi_constants.R_tb": {
         "value": 0.3063,
         "min": 0.1,
@@ -422,8 +528,16 @@
         "min": 0.0004,
         "max": 0.0004
     },
-    "gas_exchange_params.FA_O2": "104 / 713",
-    "gas_exchange_params.FA_CO2": "40 / 713",
+    "gas_exchange_params.FA_O2": {
+        "value": "104 / 713",
+        "min": "104 / 713",
+        "max": "104 / 713"
+    },
+    "gas_exchange_params.FA_CO2": {
+        "value": 0.056,
+        "min": 0.056,
+        "max": 0.056
+    },
     "gas_exchange_params.V_D": {
         "value": 0.181,
         "min": 0.181,
@@ -434,14 +548,49 @@
         "min": 2.3,
         "max": 2.3
     },
-    "gas_exchange_params.c_S_O2": "c_Scap_O2",
-    "gas_exchange_params.c_S_CO2": "c_Scap_CO2",
-    "gas_exchange_params.c_B_O2": "c_Bcap_O2",
-    "gas_exchange_params.c_B_CO2": "c_Bcap_CO2",
-    "gas_exchange_params.D_S_CO2": "D_T_CO2",
-    "gas_exchange_params.D_S_O2": "D_T_O2",
-    "gas_exchange_params.D_B_CO2": "D_T_CO2",
-    "gas_exchange_params.D_B_O2": "D_T_O2",
+    "gas_exchange_params.c_S_O2": {
+        "value": "c_Scap_O2",
+        "min": "c_Scap_O2",
+        "max": "c_Scap_O2"
+    },
+    "gas_exchange_params.c_S_CO2": {
+        "value": "c_Scap_CO2",
+        "min": "c_Scap_CO2",
+        "max": "c_Scap_CO2"
+    },
+    "gas_exchange_params.c_B_O2": {
+        "value": "c_Bcap_O2",
+        "min": "c_Bcap_O2",
+        "max": "c_Bcap_O2"
+    },
+    "gas_exchange_params.c_B_CO2": {
+        "value": "c_Bcap_CO2",
+        "min": "c_Bcap_CO2",
+        "max": "c_Bcap_CO2"
+    },
+
+
+    "gas_exchange_params.D_S_CO2": {
+        "value": "D_T_CO2",
+        "min": "D_T_CO2",
+        "max": "D_T_CO2"
+    },
+    "gas_exchange_params.D_S_O2": {
+        "value": "D_T_O2",
+        "min": "D_T_O2",
+        "max": "D_T_O2"
+    },
+    "gas_exchange_params.D_B_CO2": {
+        "value": "D_T_CO2",
+        "min": "D_T_CO2",
+        "max": "D_T_CO2"
+    },
+    "gas_exchange_params.D_B_O2": {
+        "value": "D_T_O2",
+        "min": "D_T_O2",
+        "max": "D_T_O2"
+    },
+
     "respiratory_control_params.PaCO2_n": {
         "value": 40,
         "min": 40,
