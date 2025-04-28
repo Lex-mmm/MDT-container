@@ -1,36 +1,33 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, interp1d
 import json
 
-def flatten_json(d, parent_key='', sep='.'):
-    """
-    Recursively flattens a nested JSON/dictionary into a single level dict.
-    
-    Args:
-        d (dict): The nested dictionary.
-        parent_key (str): The base key string (for recursion).
-        sep (str): Separator between nested keys.
-    
-    Returns:
-        dict: A flattened dictionary.
-    """
-    items = {}
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.update(flatten_json(v, new_key, sep=sep))
-        elif isinstance(v, list):
-            for idx, item in enumerate(v):
-                list_key = f"{new_key}[{idx}]"
-                if isinstance(item, dict):
-                    items.update(flatten_json(item, list_key, sep=sep))
-                else:
-                    items[list_key] = item
-        else:
-            items[new_key] = v
-    return items
-with open("healthyFlat.json", "r") as f:
-    healthy = json.load(f)
+from Pathologies.pathology import Pathology
 
-print(healthy["params.M_CO2"]["value"])
+def test(data):
+    path = Pathology()
+    disease = "myocardialInfarction"
+    severity = 1
+
+    with open("healthyFlat.json", "r") as f:
+        masterParameters = json.load(f)
+        
+    masterParameters = path.solveEvent(disease, severity, masterParameters)
+    print(f"Novel setting for Fi_O2 = {masterParameters['gas_exchange_params.FI_O2']['value']}")
+
+def spline():
+    y_points = np.array([0.21, 1])
+    x_points = np.array([0, 100])
+    cs = interp1d(x_points, y_points, kind='linear', fill_value="extrapolate")
+
+    x = np.linspace(0, 100, 100)
+    y = cs(x)
+    plt.plot(x, y)
+    plt.title("Linear Spline")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.grid()
+    plt.show()
+
+test(None)

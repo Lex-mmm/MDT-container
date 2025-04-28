@@ -48,7 +48,12 @@ class Patient:
 
 
 #### API ROUTING ENDPOINTS ####
-
+@app.route('/addDisease', methods=['POST'])
+def add_disease():
+    patient_id = request.args.get("patient_id")
+    disease = request.args.get("disease")
+    severity = request.args.get("severity")
+    twin_instances[patient_id].add_disease(disease, severity) 
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():

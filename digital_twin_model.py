@@ -49,6 +49,12 @@ class DigitalTwinModel:
         self.current_heart_rate = 0  # Initialize monitored value
         self.master_parameters = {}  # Initialize master parameters
 
+    def add_disease(self, disease, severity):
+        package = {
+            "disease": disease,
+            "severity": severity}
+        self.events.append(package)
+
     def _load_parameters(self, param_file):
         """
         Load parameters from a JSON configuration file.
@@ -71,59 +77,6 @@ class DigitalTwinModel:
 
     def process_parameter_expressions(self):
         """Evaluate expressions in parameters and update the dictionaries."""
-        # Combine all parameters into a single context for evaluation
-        context = {}
-        context.update({"np": np, "exp": np.exp, "min": min, "max": max})
-
-        # Collect all parameter dictionaries into one for evaluation
-        all_parameters = {}
-
-        for param_dict in self.master_parameters:
-            all_parameters.update(param_dict)
-
-        # Keep track of unresolved parameters
-        unresolved = set(all_parameters.keys())
-        resolved = set()
-        max_iterations = 10  # Prevent infinite loops
-
-        for iteration in range(max_iterations):
-            progress_made = False
-            for key in list(unresolved):
-                value = all_parameters[key]["value"]
-                if isinstance(value, str):
-                    try:
-                        # Attempt to evaluate the expression
-                        evaluated_value = eval(value, context)
-                        all_parameters[key]["value"] = evaluated_value
-                        context[key] = evaluated_value
-                        unresolved.remove(key)
-                        resolved.add(key)
-                        progress_made = True
-                    except Exception:
-                        # Cannot evaluate yet; dependencies might not be resolved
-                        continue
-                else:
-                    # Value is already a number or list
-                    context[key] = value
-                    unresolved.remove(key)
-                    resolved.add(key)
-                    progress_made = True
-
-            if not progress_made:
-                break  # No further progress can be made
-
-        if unresolved:
-            print(f"Could not resolve the following parameters after {iteration + 1} iterations:")
-            for key in unresolved:
-                print(f" - {key}")
-            raise ValueError("Parameter evaluation failed due to unresolved dependencies.")
-        else:
-            print("All parameters resolved successfully.")
-
-        # Update the original dictionaries with evaluated parameters
-        for param_dict in self.master_parameters:
-            for key in param_dict.keys():
-                param_dict[key] = all_parameters[key]
 
         # Ensure 't_eval' is defined
         if 't_eval' not in self.master_parameters:
@@ -464,7 +417,7 @@ class DigitalTwinModel:
 
         # Determine inspiration or expiration
         if (self.master_parameters['misc_constants.MV']['value'] == 1 and P_ao > 6 * 0.735) or (self.master_parameters['misc_constants.MV']['value'] == 0 and mechanical_states[0] < 0):
-----            dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.master_parameters['V_D']['value'] * 1000)
+            dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.master_parameters['V_D']['value'] * 1000)
             dFD_CO2_dt = Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (self.master_parameters['V_D']['value'] * 1000)
 
             dp_a_CO2 = (863 * q_p * (1 - sh) * (c_v_CO2 - c_a_CO2) + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)) / (self.master_parameters['V_A']['value'] * 1000)
@@ -540,8 +493,10 @@ class DigitalTwinModel:
             t_eval = [self.t + self.dt]  # Evaluate at the end of dt
 
             ## Starting computations, variables emitted - Check for disease progression
-            for singularEvent, singularEventSeverity in self.events:
-                self.initializeEvent(singularEvent, singularEventSeverity)
+            for singularEvent in self.events:
+                event = singularEvent['disease']
+                eventSeverity = singularEvent['severity']
+                self.initializeEvent(event, eventSeverity)
 
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
@@ -609,8 +564,6 @@ class DigitalTwinModel:
         if updatedParameters:
             ## Update the parameters in the model for next solver iteration
             self.MasterParameters = updatedParameters
-
-
 
     def stop_simulation(self):
         """Stop the simulation loop."""
