@@ -35,7 +35,19 @@ class Patient:
         self.running = False
         self.model.stop_simulation()
 
+    def add_disease(self, disease):
+        """Add a disease to the patient."""
+        self.model.add_disease(disease)
 
+
+
+
+
+
+
+
+
+#### API ROUTING ENDPOINTS ####
 
 
 @app.route('/start_simulation', methods=['POST'])

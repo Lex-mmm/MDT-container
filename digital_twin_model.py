@@ -8,6 +8,8 @@ import json
 from datetime import datetime
 import threading
 
+## pathologies
+from Pathologies.pathology import Pathology
 
 class DigitalTwinModel:
     def __init__(self, patient_id, param_file="sepsis.json", 
@@ -24,10 +26,11 @@ class DigitalTwinModel:
         self.data_callback = data_callback  # Callback function to emit data
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
 
-        ## Integrate starting levels of measurement uncertainty
-        self.inference = Inference()
+        self.pathologies = Pathology()  # Initialize pathologie-events 
 
         self.sleep = sleep  # Sleep between iterations, boolean
+
+        self.events = [] ## Actionable event introduction
 
         ## set datapoint amount in local memory
         self.data_points = 120 ## 2 minutes 
@@ -44,11 +47,6 @@ class DigitalTwinModel:
         self.current_state = self.initialize_state()
 
         self.current_heart_rate = 0  # Initialize monitored value
-
-    ## Add definition for API setting new parameter-settings dependent on .json format
-    def update_parameters(self, param_file_new):
-        self._load_parameters(param_file_new)
-
 
     def _load_parameters(self, param_file):
         """
@@ -536,6 +534,12 @@ class DigitalTwinModel:
     
 
 
+
+
+
+
+
+
     ## Start-stop calls
 
     def start_simulation(self):
@@ -545,10 +549,17 @@ class DigitalTwinModel:
         last_emit_time = self.t  # Track last emit time
 
         while self.running:
+
             
             # Define time span for the current step
             t_span = [self.t, self.t + self.dt]
             t_eval = [self.t + self.dt]  # Evaluate at the end of dt
+
+            ## Starting computations, variables emitted - Check for disease progression
+            for singularEvent in self.events:
+                self.initializeEvent(singularEvent)
+
+
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
             self.current_state = sol.y[:, -1]  # Update state to the latest solution
 
@@ -562,6 +573,8 @@ class DigitalTwinModel:
             self.F_store[:, self.buffer_index] = F
             self.HR_store[self.buffer_index] = HR
             self.buffer_index = (self.buffer_index + 1) % 2000
+
+
 
             #print(self.buffer_index)
             #print(self.P_store[0])
@@ -580,8 +593,6 @@ class DigitalTwinModel:
                             "RR": np.round(self.RR, 2),
                             "etCO2": np.round(self.current_state[17], 2)
                     } }
-                ## Do inference checks, add to existing values
-                data['values'] = self.inference.check_inference(data['values'] ) 
 
 
                 ## Save latest data as epoch: Keep n data points for callback purposes
@@ -593,12 +604,20 @@ class DigitalTwinModel:
 
                 last_emit_time = self.t
 
+
+
             # Update simulation time and pause
             self.t += self.dt
             if self.sleep:
                 time.sleep(self.dt)  # Control simulation speed
 
 
+    def initializeEvent(self, event):
+        ## Solve event state variables, update if necessary
+        updatedParameters = self.pathologies.solveEvent(event, self.MasterParameters)
+        if updatedParameters:
+            ## Update the parameters in the model for next solver iteration
+            self.MasterParameters.update(updatedParameters)
 
 
 
