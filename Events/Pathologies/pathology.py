@@ -89,7 +89,7 @@ class Pathology:
         ## return the mean value of the list -> Average percentage for the current parameter, if multiple options
 
     
-    def processPathology(self, event, eventSeverity):
+    def processPathology(self, eventName, eventSeverity):
         '''
         Input: 
             event: string, name of the event
@@ -114,5 +114,41 @@ class Pathology:
                     .... 
             }
         '''
+        ## Get the event from the diseases.json file
+        if eventName not in self.diseases[eventName]:
+            print(f"Event {eventName} not found in diseases.json")
+            return None
 
-        
+        disease = self.diseases[eventName]
+        if disease:
+
+            diseaseParam = disease[f"severity_{eventSeverity}"]
+            diseaseStartingCondition = diseaseParam["startingCondition"]
+            diseaseDecayCondition = diseaseParam["decay"]
+
+            ## process event for starting Condition:
+            eventShell = {
+                f"{eventName}_Start":{
+                    "event": eventName,
+                    "eventSeverity": eventSeverity,
+                    "eventType": "disease",
+                    "timeCategorical": 'limited',
+                    "lastEmission": 0,
+                    "timeInterval": 0,
+                    "timeUnit": 's',
+                    "eventCount": 1,
+                    "parameters": {}
+                },
+                f"{eventName}_Decay":{
+                    "event": eventName,
+                    "eventSeverity": eventSeverity,
+                    "eventType": "disease",
+                    "timeCategorical": 'continuous',
+                    "lastEmission": 0,
+                    "timeInterval": diseaseDecayCondition[0][],
+                    "timeUnit": 's',
+                    "eventCount": 1,
+                    "parameters": {}
+                }
+            }
+

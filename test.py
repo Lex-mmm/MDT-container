@@ -43,3 +43,7 @@ print(int(timedelta(**{unit: time}).total_seconds()))
 #timedelta = datetime2 - datetime1
 #print(timedelta.total_seconds())
 
+import random
+
+string = [2,3]
+## pick a number between min and max in list
