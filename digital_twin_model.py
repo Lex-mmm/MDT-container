@@ -539,6 +539,7 @@ class DigitalTwinModel:
 
         # Determine inspiration or expiration
         if (self.master_parameters['misc_constants.MV']['value'] == 1 and P_ao > 6 * 0.735) or (self.master_parameters['misc_constants.MV']['value'] == 0 and mechanical_states[0] < 0):
+            # Inspiration
             dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
             dFD_CO2_dt = Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
 
@@ -552,7 +553,6 @@ class DigitalTwinModel:
             dp_a_CO2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_CO2 - c_a_CO2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
             dp_a_O2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
 
-        #print(FI_O2, FI_CO2, Vdot_l, Vdot_A, p_a_O2, p_a_CO2, c_a_O2, c_a_CO2)
         # The systemic tissue compartment
         M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
         D_S_CO2    = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
