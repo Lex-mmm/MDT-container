@@ -1,106 +1,106 @@
-{"myocardialInfarction":{
-    "severity_1":{
-    "decay":{
-        "cardio_parameters.elastance.max.9":{
-            "min": -0.25,
-            "max": -2,
-            "unit": 60
+{
+    "myocardialInfarction": {
+        "severity_0": {
+            "startingConditions": {
+                "cardio_parameters.elastance.max.9": 0,
+                "cardio_parameters.elastance.max.7": 0
+            },
+            "decay": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": -0.25,
+                    "max": -2,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": -0.25,
+                    "max": -2,
+                    "unit": 60
+                }
+            },
+            "recovery": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": 0.25,
+                    "max": 1,
+                    "unit": 60
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": 0.25,
+                    "max": 1,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            }
         },
-        "cardio_parameters.elastance.max.7":{
-            "min": -0.25,
-            "max": -2,
-            "unit": 60
+        "severity_1": {
+            "startingConditions": {
+                "cardio_parameters.elastance.max.9": 25,
+                "cardio_parameters.elastance.max.7": 25
+            },
+            "decay": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": -0.25,
+                    "max": -2,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": -0.25,
+                    "max": -2,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            },
+            "recovery": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": 0.25,
+                    "max": 1,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": 0.25,
+                    "max": 1,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            }
+        },
+        "severity_2": {
+            "startingConditions": {
+                "cardio_parameters.elastance.max.9": 50,
+                "cardio_parameters.elastance.max.7": 50
+            },
+            "decay": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": -0.25,
+                    "max": -3,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": -0.25,
+                    "max": -3,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            },
+            "recovery": {
+                "cardio_parameters.elastance.max.9": {
+                    "min": 0.25,
+                    "max": 0.75,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                },
+                "cardio_parameters.elastance.max.7": {
+                    "min": 0.25,
+                    "max": 0.75,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            }
         }
     },
-    "recovery":{
-        "cardio_parameters.elastance.max.9":{
-            "min": 0.25,
-            "max": 1,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": 0.25,
-            "max": 1,
-            "unit": 60
-        }
-    } },
-    "severity_2":{
-    "decay":{
-        "cardio_parameters.elastance.max.9":{
-            "min": -0.25,
-            "max": -3,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": -0.25,
-            "max": -3,
-            "unit": 60
-        }
-    },
-    "recovery":{
-        "cardio_parameters.elastance.max.9":{
-            "min": 0.25,
-            "max": 0.5,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": 0.25,
-            "max": 0.5,
-            "unit": 60
-        }
+    "pneumonia": {
     }
-    }
-}, "pneumonia":{
-    "severity_1":{
-    "decay":{
-        "cardio_parameters.elastance.max.9":{
-            "min": -0.25,
-            "max": -2,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": -0.25,
-            "max": -2,
-            "unit": 60
-        }
-    },
-    "recovery":{
-        "cardio_parameters.elastance.max.9":{
-            "min": 0.25,
-            "max": 1,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": 0.25,
-            "max": 1,
-            "unit": 60
-        }
-    } },
-    "severity_2":{
-    "decay":{
-        "cardio_parameters.elastance.max.9":{
-            "min": -0.25,
-            "max": -3,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": -0.25,
-            "max": -3,
-            "unit": 60
-        }
-    },
-    "recovery":{
-        "cardio_parameters.elastance.max.9":{
-            "min": 0.25,
-            "max": 0.5,
-            "unit": 60
-        },
-        "cardio_parameters.elastance.max.7":{
-            "min": 0.25,
-            "max": 0.5,
-            "unit": 60
-        }
-    }
-    }
-}
 }
