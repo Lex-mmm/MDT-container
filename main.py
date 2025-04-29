@@ -54,6 +54,7 @@ def add_disease():
     disease = request.args.get("disease")
     severity = request.args.get("severity")
     twin_instances[patient_id].add_disease(disease, severity) 
+    return jsonify({"status": f"Disease {disease} added with severity {severity} for patient {patient_id}"})
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():
@@ -121,7 +122,11 @@ def get_alarms():
     patient_id = request.args.get("patient_id")
     if patient_id not in twin_instances:
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
-    return jsonify(twin_instances[patient_id].model.alarms)
+    else:
+        alarms = twin_instances[patient_id].model.alarmModule.alarms
+        #print(f"Alarms for patient {patient_id}: {alarms[0:60]}")
+        return jsonify(alarms[0:60])
+
 
 @app.route('/infer_swap', methods = ['POST'])
 def infer_swap():

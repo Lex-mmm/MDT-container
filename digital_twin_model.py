@@ -3,10 +3,12 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 from Inference.inference_calc import Inference
+from Alarms.alarmModule import alarmModule
 import time
 import json
 from datetime import datetime
 import threading
+from datetime import timedelta
 
 ## pathologies
 from Pathologies.pathology import Pathology
@@ -27,7 +29,7 @@ class DigitalTwinModel:
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
 
         self.pathologies = Pathology()  # Initialize pathologie-events 
-
+        self.alarmModule = alarmModule()  # Initialize alarm module
         self.sleep = sleep  # Sleep between iterations, boolean
 
         self.events = [] ## Actionable event introduction
@@ -36,6 +38,7 @@ class DigitalTwinModel:
         self.data_points = 120 ## 2 minutes 
 
         self.data_epoch = {}
+        self.start_timestamp = datetime.now()
 
         # Load parameters from JSON
         self._load_parameters(param_file)
@@ -661,7 +664,7 @@ class DigitalTwinModel:
 
             # Emit data to the client every 1 seconds = output_frequency
             if self.t - last_emit_time >= self.output_frequency:
-                data = {'time': np.round(self.t),  ## Round timestep to the second
+                data = {'time': self.start_timestamp + timedelta(seconds=np.round(self.t)),  ## Round timestep to the second
                         'values':{
                             "heart_rate": np.round(self.current_heart_rate, 2),
                             "SaO2": np.round(self.current_SaO2, 2),
@@ -670,7 +673,6 @@ class DigitalTwinModel:
                             "etCO2": np.round(self.current_state[17], 2)
                     } }
 
-
                 ## Save latest data as epoch: Keep n data points for callback purposes
                 if len(self.data_epoch) == 0:
                     self.data_epoch = [data]
@@ -678,6 +680,8 @@ class DigitalTwinModel:
                     self.data_epoch.append(data)
                     self.data_epoch = self.data_epoch[ -self.data_points:] # Keep last N data points
 
+                ## Send the data to the Alarm-module 
+                self.alarmModule.evaluate_data(curr_data = data, historic_data = self.data_epoch)
                 last_emit_time = self.t
 
 
