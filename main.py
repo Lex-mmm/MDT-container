@@ -35,21 +35,32 @@ class Patient:
         self.running = False
         self.model.stop_simulation()
 
-    def processEvent(self, event, eventSeverity=None, eventType=None):
+    def processEvent(self, event, eventSeverity, eventType=None):
         """Process event for patient consequences."""
+        if not event or not eventSeverity:
+            return "Missing data: event or eventSeverity"
+        processedEvent = None ## start with empty, fill if needed
         if eventType == "disease" or eventType == "recovery":
-            self.model.add_disease(event, eventSeverity)
+            processedEvent = self.model.pathologies.processPathology(event, eventSeverity)
         elif eventType == "therapeutic":
-            self.model.add_therapeutic(event, eventSeverity)
+            processedEvent = self.model.therapeutic.processTherapeutic(event, eventSeverity)
             
-        ## Event-layout:
+        if processedEvent:
+            for event in processedEvent:
+                ## Allow multiple actions to flow from a single event (e.g. starting point + decay)
+                self.model.addProcessedEvent(event)
+
+        ## Single-event-layout:
         # event: {
         #     "event": "disease",
         #     "eventSeverity": 2,
         #     "eventType": "disease"
-        #     "continuous": True
+        #     "timeCategorical": "continuous" || "limited"
         #     "lastEmission": self.dt
-        #     "interval": 0.5
+        #     "timeInterval": 0.5
+        #     "timeUnit": "hours"
+        #     "eventCount": 5
+        #     "parameters": {name: value}
         #}
             
 

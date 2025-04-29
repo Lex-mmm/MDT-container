@@ -3,15 +3,15 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 from Inference.inference_calc import Inference
+
 from Alarms.alarmModule import alarmModule
-import time
-import json
-from datetime import datetime
-import threading
-from datetime import timedelta
+import time, json
+from datetime import datetime, timedelta
 
 ## pathologies
 from Events.Pathologies.pathology import Pathology
+## therapy
+from Events.Therapy.therapies import Therapy
 
 class DigitalTwinModel:
     def __init__(self, patient_id, param_file="sepsis.json", 
@@ -28,6 +28,7 @@ class DigitalTwinModel:
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
 
         self.pathologies = Pathology()  # Initialize pathologie-events 
+        self.therapeutic = Therapy()
         self.alarmModule = alarmModule()  # Initialize alarm module
         self.sleep = sleep  # Sleep between iterations, boolean
 
@@ -694,18 +695,20 @@ class DigitalTwinModel:
 
     def addProcessedEvent(self, event):
         """Add a processed event to the event queue."""
-        self.events.append(event)
-        print(f"Event added for patient {self.patient_id}: {event['eventType']}")
+        if event:
+            self.events.append(event)
+            print(f"Event added for patient {self.patient_id}: {event['eventType']}")
 
-    def processEvent(self, eventContent, eventType):
+    def processEvent(self, eventContent):
         outcome = None
-
+        error = None
         """Process an event and update the model parameters."""
-        if eventType == "common": ## routine, no specific things
+        if eventContent["eventType"] == "common": ## routine, no specific things
             if eventContent["timeCategorical"] == "continuous" or eventContent["timeCategorical"] == "limited":
                 ## ongoing event, check delta T 
                 outcome = True ## keep the event 
-                if self.t - eventContent["lastEmission"] <= eventContent["timeInterval"]:
+                lastEmissionTime = eventContent["lastEmission"] if eventContent["lastEmission"] else 0
+                if self.t - lastEmissionTime <= int(timedelta(**{eventContent["timeUnit"]: eventContent["timeInterval"]}).total_seconds()):
                     ## Not enough time has passed: Break early
                     return
                 else:
@@ -717,27 +720,58 @@ class DigitalTwinModel:
 
             ## continue with the event processing
             for paramChange in eventContent['paramChanges']:
-                param = paramChange['param']
+                paramName = paramChange['parameter']
                 paramValChange = paramChange['value']
                 ## paramValChange is in percentages compared to [-100 | 100]
-                if param in self.master_parameters:
-                    currPercent = self.CalcParamPercent(self.master_parameters[param])
-                    currPercent += paramValChange
-                    ## get the actual value for the parameter in non-percentualness
-                    splineFunction = self.splineFunctions[param]
-                    newValue = splineFunction(currPercent)
-                    ## Update the parameter in the model
-                    self.master_parameters[param]['value'] = newValue
+                if paramName in self.master_parameters:
+                    ## A] Type = 'relative' -> convert current value to a percentage - add percentage and recalculate
+                    if paramChange['type'] == 'relative':
+                        ## get the current value of the parameter
+                        currValue = self.master_parameters[paramName]['value']
+                        ## get the current percentage of the parameter
+                        currPercent = self.pathologies.CalcParamPercent(currValue, paramName)
+
+                        if paramChange['action'] == 'decay':
+                            ## decay the parameter
+                            currPercent += paramValChange ## decay goes both ways: in- and decrease facilitated
+                        elif paramChange['action'] == 'set':
+                            currPercent = paramValChange
+                        else:
+                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+
+                        ## get the actual value for the parameter in non-percentualness
+                        splineFunction = self.pathologies.splineFunctions[paramName]
+                        newValue = splineFunction(currPercent)
+                        ## Update the parameter in the model
+                        self.master_parameters[paramName]['value'] = newValue
+
+                    ## B] Type = 'absolute' -> set directly, no inference of spline
+                    elif paramChange['type'] == 'absolute':
+                        if paramChange['action'] == 'decay':
+                            ## decay the parameter
+                            self.master_parameters[paramName]['value'] += paramChange['value']
+                        elif paramChange['action'] == 'set':
+                            ## set parameter direcly
+                            self.master_parameters[paramName]['value'] = paramChange['value']
+                        else:
+                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+                    else:
+                        error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+                        return False
             
             ## recalculate cardiac elastances, resistance and uVolme
             self.compute_cardiac_parameters()
         
-        elif eventType == "special": 
+        elif eventContent["eventType"] == "special": 
             ## Custom-made function for special events
             outcome = False
+            print(f"Special events not yet incorporated, removing from list")
             ## to be filled later!
-            
-        return outcome ## True = event can stay for next iteration, False = event to be deleted
+
+        if error:
+             return error 
+        else: 
+            return outcome ## True = event can stay for next iteration, False = event to be deleted
             
     def stop_simulation(self):
         """Stop the simulation loop."""

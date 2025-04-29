@@ -51,9 +51,8 @@ class Pathology:
                 cs = CubicSpline(x_points, y_points, bc_type='natural')
             return cs
 
-
-
     def solveEvent(self, event, eventSeverity, masterParameters):
+        ''' DEPRICATED: Use processPathology instead'''
         disease = self.diseases[event]
         if disease:
             diseaseParam = disease[f"severity_{eventSeverity}"]
@@ -72,31 +71,48 @@ class Pathology:
 
             ## change parameters in the master parameter file
 
-    def plot_spline(self, spline_function, x_min, x_max, num_points=100):
-        """
-        Plots a spline function over a specified range.
+    def CalcParamPercent(self, paramContent, paramName):
 
-        Args:
-            spline_function (callable): The spline function to plot.
-            x_min (float): The minimum x value for the plot.
-            x_max (float): The maximum x value for the plot.
-            num_points (int): The number of points to use for plotting (default: 100).
-        """
-        # Generate x values
-        x_values = np.linspace(x_min, x_max, num_points)
-        # Evaluate the spline function for each x value
-        y_values = spline_function(x_values)
+        paramValue = paramContent["value"]
+        paramMin = paramContent["min"]
+        paramMax = paramContent["max"]
+
+        paramFuncton = self.splineFunctions[paramName]
+        ## get the
+        x_values = np.linspace(paramMin, paramMax, 0.01)
+        y_values = paramFuncton(x_values)
+
+        # Find where the spline crosses the target Y value
+        indices = np.where(np.isclose(y_values, paramValue, atol=1e-3))[0]
+        listVal = x_values[indices].tolist()
+        return listVal.mean()
+        ## return the mean value of the list -> Average percentage for the current parameter, if multiple options
+
+    
+    def processPathology(self, event, eventSeverity):
+        '''
+        Input: 
+            event: string, name of the event
+            eventSeverity: int, severity of the event
+        Output:
+            processedEvent: events (n >=1), with following structure:
+            {
+                "event": eventName,                     String with name (e.g. myocardialInfarction)
+                "eventSeverity": eventSeverity,         0 || 1 || 2 || 3 etc...
+                "eventType": eventType,                 Disease || Therapy
+                "timeCategorical": timeCategorical,     Continuous || Limited
+                "lastEmission": lastEmission,           Last time of event emission (processed time), standard 0
+                "timeInterval": timeInterval,           Time interval of the event (e.g. 0.5) for next processing
+                "timeUnit": timeUnit,                   Time unit of the event (e.g. hours)
+                "eventCount": eventCount,               Number of events, only used in case of limited timing: for single use, use n=1
+                "parameters": {
+                    name: {
+                        value: [ Int || float ],
+                        action: "set" || "decay"
+                        type: "absolute" || "relative
+                    },
+                    .... 
+            }
+        '''
+
         
-        # Plot the spline
-        plt.figure(figsize=(8, 6))
-        plt.plot(x_values, y_values, label="Spline Function", color="blue")
-        plt.title("Spline Function Plot")
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.grid(True)
-        plt.legend()
-        plt.show()
-
-    # Example usage
-    # Assuming `cs` is a spline function created using CubicSpline or interp1d
-    # plot_spline(cs, x_min=0, x_max=10)
