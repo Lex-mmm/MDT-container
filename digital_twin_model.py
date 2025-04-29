@@ -367,7 +367,7 @@ class DigitalTwinModel:
         p_a_O2 = y[18]
         CaO2 = (self.master_parameters['params.K_O2']['value'] * np.power((1 - np.exp(-self.master_parameters['params.k_O2']['value'] * min(p_a_O2, 700))), 2)) * 100
         Sa_O2 = np.round(((CaO2 - p_a_O2 * 0.003 / 100) / (self.master_parameters['misc_constants.Hgb']['value'] * 1.34)) * 100)
-
+        ##print(CaO2, p_a_O2, Sa_O2)
         return P, F, HR, Sa_O2
 
     def ventilator_pressure(self, t):
@@ -546,6 +546,7 @@ class DigitalTwinModel:
             dp_a_CO2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_CO2 - c_a_CO2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
             dp_a_O2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
 
+        #print(FI_O2, FI_CO2, Vdot_l, Vdot_A, p_a_O2, p_a_CO2, c_a_O2, c_a_CO2)
         # The systemic tissue compartment
         M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
         D_S_CO2    = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
