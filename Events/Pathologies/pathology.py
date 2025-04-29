@@ -3,19 +3,20 @@ import json
 import pandas as pd
 from scipy.interpolate import CubicSpline, interp1d
 from matplotlib import pyplot as plt
-
+import random
+import statistics
 
 class Pathology:
     def __init__(self):
         with open("healthyFlat.json", "r") as f:
             splineParameters = json.load(f)
-        
+        self.splineParameters = splineParameters    
         self.splineFunctions = {}
         for parameter in splineParameters:
             self.splineFunctions[parameter] = self.splineSolver(splineParameters[parameter])
             ## Spline functionality returns the value for the given parameter
         
-        with open("Pathologies/diseases.json", "r") as f:
+        with open("Events/Pathologies/diseases.json", "r") as f:
             self.diseases = json.load(f)
     
     def splineSolver(self, parameterValues):
@@ -71,21 +72,40 @@ class Pathology:
 
             ## change parameters in the master parameter file
 
-    def CalcParamPercent(self, paramContent, paramName):
+    def CalcParamPercent(self, paramValue, paramName):
+        curr_val = paramValue
 
-        paramValue = paramContent["value"]
+        paramContent = self.splineParameters[paramName]
         paramMin = paramContent["min"]
         paramMax = paramContent["max"]
+        paramMean = paramContent["value"]
 
+        if paramMin == paramMean:
+            searchMin = 0
+            searchMax = 100
+        elif paramMax == paramMean:
+            searchMin = -100
+            searchMax = 0
+        else:
+            searchMin = -100
+            searchMax = 100
+
+        print(f"min: {paramMin}, max: {paramMax}, value: {curr_val}")
+        ## get the function for the parameter
         paramFuncton = self.splineFunctions[paramName]
-        ## get the
-        x_values = np.linspace(paramMin, paramMax, 0.01)
+        # create theoretical values for the parameter
+        x_values = np.linspace(searchMin, searchMax, int(((searchMax - searchMin) / 0.1)+1) ) ## granularity
+        ## get the values for the parameter
         y_values = paramFuncton(x_values)
 
         # Find where the spline crosses the target Y value
-        indices = np.where(np.isclose(y_values, paramValue, atol=1e-3))[0]
+        indices = np.where(np.isclose(y_values, curr_val, atol=0.01))[0]
+
+        ## get the indices of the values that are close to the current value
         listVal = x_values[indices].tolist()
-        return listVal.mean()
+
+        return statistics.mean(listVal) ## average percentage: No die-hard granularity
+
         ## return the mean value of the list -> Average percentage for the current parameter, if multiple options
 
     
@@ -114,41 +134,67 @@ class Pathology:
                     .... 
             }
         '''
-        ## Get the event from the diseases.json file
-        if eventName not in self.diseases[eventName]:
-            print(f"Event {eventName} not found in diseases.json")
-            return None
 
+        # Get the event from the diseases.json file
         disease = self.diseases[eventName]
         if disease:
-
             diseaseParam = disease[f"severity_{eventSeverity}"]
-            diseaseStartingCondition = diseaseParam["startingCondition"]
+            diseaseStartingCondition = diseaseParam["startingConditions"]
             diseaseDecayCondition = diseaseParam["decay"]
 
-            ## process event for starting Condition:
-            eventShell = {
-                f"{eventName}_Start":{
-                    "event": eventName,
-                    "eventSeverity": eventSeverity,
-                    "eventType": "disease",
-                    "timeCategorical": 'limited',
-                    "lastEmission": 0,
-                    "timeInterval": 0,
-                    "timeUnit": 's',
-                    "eventCount": 1,
-                    "parameters": {}
-                },
-                f"{eventName}_Decay":{
-                    "event": eventName,
-                    "eventSeverity": eventSeverity,
-                    "eventType": "disease",
-                    "timeCategorical": 'continuous',
-                    "lastEmission": 0,
-                    "timeInterval": diseaseDecayCondition[0][],
-                    "timeUnit": 's',
-                    "eventCount": 1,
-                    "parameters": {}
-                }
+            # Process event for starting conditions
+            startShell = {
+                "event": eventName,
+                "eventSeverity": eventSeverity,
+                "eventType": "common",
+                "timeCategorical": 'limited',
+                "lastEmission": 0,
+                "timeInterval": 0,
+                "timeUnit": 'seconds',
+                "eventCount": 1,  # Initial use only
+                "parameters": []
             }
 
+            for params in diseaseStartingCondition["parameters"]:
+                paramFillShell = {
+                    "name": params,
+                    "value": diseaseStartingCondition["parameters"][params],
+                    "action": "set",
+                    "type": "relative"
+                }
+                startShell["parameters"].append(paramFillShell)
+
+            print(f"Starting shell is: {startShell}")
+
+            # Process event for decay conditions
+            decayShell = {
+                "event": eventName,
+                "eventSeverity": eventSeverity,
+                "eventType": "common",
+                "timeCategorical": diseaseDecayCondition['rate']['type'],
+                "lastEmission": None,
+                "timeInterval": diseaseDecayCondition['rate']['timeValue'],
+                "timeUnit": diseaseDecayCondition['rate']['timeUnit'],
+                "eventCount": -10,  # Continuous function
+                "parameters": []
+            }
+
+            for params in diseaseDecayCondition["parameters"]:
+                paramData = diseaseDecayCondition["parameters"][params]
+                paramFillShell = {
+                    "name": params,
+                    "value": round(random.uniform(paramData['min'], paramData['max']), 2),  # Two-decimal granularity
+                    "action": "decay",
+                    "type": "relative"
+                }
+                print(f"Adding shell based on {params}")
+                decayShell["parameters"].append(paramFillShell)
+
+            print(f"Decay shell is: {decayShell}")
+
+            # Combine the processed events
+            processedEvent = [startShell, decayShell]
+            return processedEvent
+        else:
+            print(f"Event {eventName} not found in diseases.json")
+            return None

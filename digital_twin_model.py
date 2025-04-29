@@ -629,7 +629,7 @@ class DigitalTwinModel:
 
             ## Starting computations, variables emitted - Check for disease progression
             for processedEvent in self.events:
-                outcome = self.processEvent(processedEvent['eventContent'], processedEvent['eventType'])
+                outcome = self.processEvent(processedEvent)
                 if outcome is False:
                     self.events.remove(processedEvent)  # Remove the event after processing, else keep it
 
@@ -703,7 +703,7 @@ class DigitalTwinModel:
         outcome = None
         error = None
         """Process an event and update the model parameters."""
-        if eventContent["eventType"] == "common": ## routine, no specific things
+        if eventContent["eventType"] == "common": ## routine, no specific things -> Special events re-route to custom functions
             if eventContent["timeCategorical"] == "continuous" or eventContent["timeCategorical"] == "limited":
                 ## ongoing event, check delta T 
                 outcome = True ## keep the event 
@@ -715,12 +715,12 @@ class DigitalTwinModel:
                     ## Enough time has passed: Update last emission time
                     eventContent["lastEmission"] = self.t
                     eventContent["eventCount"] -= 1
-                    if eventContent["eventCount"] <= 0:
+                    if eventContent["eventCount"] == 0:
                         outcome = False ## remove the event after this processing round
 
             ## continue with the event processing
-            for paramChange in eventContent['paramChanges']:
-                paramName = paramChange['parameter']
+            for paramChange in eventContent['parameters']:
+                paramName = paramChange['name']
                 paramValChange = paramChange['value']
                 ## paramValChange is in percentages compared to [-100 | 100]
                 if paramName in self.master_parameters:
@@ -744,6 +744,7 @@ class DigitalTwinModel:
                         newValue = splineFunction(currPercent)
                         ## Update the parameter in the model
                         self.master_parameters[paramName]['value'] = newValue
+                        print(f" === EVENT ACTION: param {paramName} updated to {self.master_parameters[paramName]['value']} ===")
 
                     ## B] Type = 'absolute' -> set directly, no inference of spline
                     elif paramChange['type'] == 'absolute':

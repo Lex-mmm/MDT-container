@@ -44,6 +44,7 @@ print(int(timedelta(**{unit: time}).total_seconds()))
 #print(timedelta.total_seconds())
 
 import random
-
-string = [2,3]
-## pick a number between min and max in list
+from Events.Pathologies.pathology import Pathology
+pathology = Pathology()
+testing = pathology.CalcParamPercent(3, "cardio_parameters.elastance.max.9")
+print(f"Testing: {testing}")

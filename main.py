@@ -37,6 +37,7 @@ class Patient:
 
     def processEvent(self, event, eventSeverity, eventType=None):
         """Process event for patient consequences."""
+        print(f" ----- PROCESSING EVENT ----- {event} ----- {eventSeverity} ----- {eventType}")
         if not event or not eventSeverity:
             return "Missing data: event or eventSeverity"
         processedEvent = None ## start with empty, fill if needed
@@ -44,7 +45,8 @@ class Patient:
             processedEvent = self.model.pathologies.processPathology(event, eventSeverity)
         elif eventType == "therapeutic":
             processedEvent = self.model.therapeutic.processTherapeutic(event, eventSeverity)
-            
+        
+        print(f"Processed event: {processedEvent}")
         if processedEvent:
             for event in processedEvent:
                 ## Allow multiple actions to flow from a single event (e.g. starting point + decay)
@@ -60,7 +62,7 @@ class Patient:
         #     "timeInterval": 0.5
         #     "timeUnit": "hours"
         #     "eventCount": 5
-        #     "parameters": {name: value}
+        #     "parameters": {name: x, value: y, action: 'set' vs 'relative', type: 'absolute' vs 'relative}
         #}
             
 
