@@ -11,12 +11,11 @@ import threading
 from datetime import timedelta
 
 ## pathologies
-from Pathologies.pathology import Pathology
+from Events.Pathologies.pathology import Pathology
 
 class DigitalTwinModel:
     def __init__(self, patient_id, param_file="sepsis.json", 
                  data_callback=None, 
-                 alarm_callback=None, 
                  sleep=True,
                  time_step=0.01
                  ): ## modify for brute-force jobs
@@ -184,9 +183,7 @@ class DigitalTwinModel:
         self.master_parameters['gas_exchange_params.D_S_O2']  = {'value': self.master_parameters['params.D_T_O2']['value']}
         self.master_parameters['gas_exchange_params.D_B_O2'] = {'value': self.master_parameters['params.D_T_O2']['value']}
 
-
-    def initialize_model_parameters(self):
-        """Initialize model parameters like elastance, resistance, uvolume, etc."""
+    def compute_cardiac_parameters(self):
         # Initialize elastance, resistance, uvolume from parameters
 
         cardio_elastance_min = [key for key in self.master_parameters if 'cardio' in key and 'min' in key and 'elastance' in key]
@@ -201,7 +198,12 @@ class DigitalTwinModel:
         self.resistance = np.array([self.master_parameters[key]['value'] for key in cardio_resistance])
         
         self.uvolume = np.array([self.master_parameters[key]['value'] for key in cardio_uvolume])
-        #, dtype=np.float64)
+
+
+    def initialize_model_parameters(self):
+        """Initialize model parameters like elastance, resistance, uvolume, etc."""
+        # load cardiac computed parameters (elastance, resistance, uVolme)
+        self.compute_cardiac_parameters()
 
         # Lung model equations
         # Mechanical system parameters
@@ -624,11 +626,10 @@ class DigitalTwinModel:
             t_eval = [self.t + self.dt]  # Evaluate at the end of dt
 
             ## Starting computations, variables emitted - Check for disease progression
-            for singularEvent in self.events:
-                event = singularEvent['disease']
-                eventSeverity = singularEvent['severity']
-                self.initializeEvent(event, eventSeverity)
-                self.events.remove(singularEvent)  # Remove the event after processing
+            for processedEvent in self.events:
+                outcome = self.processEvent(processedEvent['eventContent'], processedEvent['eventType'])
+                if outcome is False:
+                    self.events.remove(processedEvent)  # Remove the event after processing, else keep it
 
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
@@ -690,19 +691,52 @@ class DigitalTwinModel:
             if self.sleep:
                 time.sleep(self.dt)  # Control simulation speed
 
+    def addProcessedEvent(self, event):
+        """Add a processed event to the event queue."""
+        self.events.append(event)
+        print(f"Event added for patient {self.patient_id}: {event['eventType']}")
 
-    def initializeEvent(self, event, eventSeverity):
-        ## Solve event state variables, update if necessary
-        updatedParameters = self.pathologies.solveEvent(event, eventSeverity, self.master_parameters)
-        if updatedParameters:
-            ## Update the parameters in the model foradd_disease next solver iteration
-            self.master_parameters = updatedParameters
+    def processEvent(self, eventContent, eventType):
+        outcome = None
 
-            cardio_elastance_min = [key for key in self.master_parameters if 'cardio' in key and 'min' in key and 'elastance' in key]
-            cardio_elastance_max = [key for key in self.master_parameters if 'cardio' in key and 'max' in key and 'elastance' in key]
+        """Process an event and update the model parameters."""
+        if eventType == "common": ## routine, no specific things
+            if eventContent["timeCategorical"] == "continuous" or eventContent["timeCategorical"] == "limited":
+                ## ongoing event, check delta T 
+                outcome = True ## keep the event 
+                if self.t - eventContent["lastEmission"] <= eventContent["timeInterval"]:
+                    ## Not enough time has passed: Break early
+                    return
+                else:
+                    ## Enough time has passed: Update last emission time
+                    eventContent["lastEmission"] = self.t
+                    eventContent["eventCount"] -= 1
+                    if eventContent["eventCount"] <= 0:
+                        outcome = False ## remove the event after this processing round
 
-            self.elastance = np.array([ [self.master_parameters[key]['value'] for key in cardio_elastance_min], 
-                             [self.master_parameters[key]['value'] for key in cardio_elastance_max]])
+            ## continue with the event processing
+            for paramChange in eventContent['paramChanges']:
+                param = paramChange['param']
+                paramValChange = paramChange['value']
+                ## paramValChange is in percentages compared to [-100 | 100]
+                if param in self.master_parameters:
+                    currPercent = self.CalcParamPercent(self.master_parameters[param])
+                    currPercent += paramValChange
+                    ## get the actual value for the parameter in non-percentualness
+                    splineFunction = self.splineFunctions[param]
+                    newValue = splineFunction(currPercent)
+                    ## Update the parameter in the model
+                    self.master_parameters[param]['value'] = newValue
+            
+            ## recalculate cardiac elastances, resistance and uVolme
+            self.compute_cardiac_parameters()
+        
+        elif eventType == "special": 
+            ## Custom-made function for special events
+            outcome = False
+            ## to be filled later!
+            
+        return outcome ## True = event can stay for next iteration, False = event to be deleted
             
     def stop_simulation(self):
         """Stop the simulation loop."""

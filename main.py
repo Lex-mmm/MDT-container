@@ -35,9 +35,25 @@ class Patient:
         self.running = False
         self.model.stop_simulation()
 
-    def add_disease(self, disease, disease_severity):
-        """Add a disease to the patient."""
-        self.model.add_disease(disease, disease_severity)
+    def processEvent(self, event, eventSeverity=None, eventType=None):
+        """Process event for patient consequences."""
+        if eventType == "disease" or eventType == "recovery":
+            self.model.add_disease(event, eventSeverity)
+        elif eventType == "therapeutic":
+            self.model.add_therapeutic(event, eventSeverity)
+            
+        ## Event-layout:
+        # event: {
+        #     "event": "disease",
+        #     "eventSeverity": 2,
+        #     "eventType": "disease"
+        #     "continuous": True
+        #     "lastEmission": self.dt
+        #     "interval": 0.5
+        #}
+            
+
+
 
 
 
@@ -51,10 +67,12 @@ class Patient:
 @app.route('/addDisease', methods=['POST'])
 def add_disease():
     patient_id = request.args.get("patient_id")
-    disease = request.args.get("disease")
-    severity = request.args.get("severity")
-    twin_instances[patient_id].add_disease(disease, severity) 
-    return jsonify({"status": f"Disease {disease} added with severity {severity} for patient {patient_id}"})
+    event = request.args.get("event")
+    eventSeverity = request.args.get("eventSeverity")
+    eventType = request.args.get("eventType")
+    twin_instances[patient_id].processEvent(event, eventSeverity, eventType)
+
+    return jsonify({"status": f"Event {event} added with severity {eventSeverity} for patient {patient_id}"})
 
 @app.route('/start_simulation', methods=['POST'])
 def start_simulation():

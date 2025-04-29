@@ -1,0 +1,106 @@
+{"myocardialInfarction":{
+    "severity_1":{
+    "decay":{
+        "cardio_parameters.elastance.max.9":{
+            "min": -0.25,
+            "max": -2,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": -0.25,
+            "max": -2,
+            "unit": 60
+        }
+    },
+    "recovery":{
+        "cardio_parameters.elastance.max.9":{
+            "min": 0.25,
+            "max": 1,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": 0.25,
+            "max": 1,
+            "unit": 60
+        }
+    } },
+    "severity_2":{
+    "decay":{
+        "cardio_parameters.elastance.max.9":{
+            "min": -0.25,
+            "max": -3,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": -0.25,
+            "max": -3,
+            "unit": 60
+        }
+    },
+    "recovery":{
+        "cardio_parameters.elastance.max.9":{
+            "min": 0.25,
+            "max": 0.5,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": 0.25,
+            "max": 0.5,
+            "unit": 60
+        }
+    }
+    }
+}, "pneumonia":{
+    "severity_1":{
+    "decay":{
+        "cardio_parameters.elastance.max.9":{
+            "min": -0.25,
+            "max": -2,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": -0.25,
+            "max": -2,
+            "unit": 60
+        }
+    },
+    "recovery":{
+        "cardio_parameters.elastance.max.9":{
+            "min": 0.25,
+            "max": 1,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": 0.25,
+            "max": 1,
+            "unit": 60
+        }
+    } },
+    "severity_2":{
+    "decay":{
+        "cardio_parameters.elastance.max.9":{
+            "min": -0.25,
+            "max": -3,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": -0.25,
+            "max": -3,
+            "unit": 60
+        }
+    },
+    "recovery":{
+        "cardio_parameters.elastance.max.9":{
+            "min": 0.25,
+            "max": 0.5,
+            "unit": 60
+        },
+        "cardio_parameters.elastance.max.7":{
+            "min": 0.25,
+            "max": 0.5,
+            "unit": 60
+        }
+    }
+    }
+}
+}
