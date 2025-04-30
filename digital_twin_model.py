@@ -2,7 +2,6 @@
 
 import numpy as np
 from scipy.integrate import solve_ivp
-from Inference.inference_calc import Inference
 
 from Alarms.alarmModule import alarmModule
 import time, json
@@ -663,6 +662,7 @@ class DigitalTwinModel:
                 print(f"MAP, SAP, DAP, HR, SaO2, RR at time {self.t:.2f}s for patient {self.patient_id}: {MAP} {SAP} {DAP} {HR} {Sa_O2} {RR}")
                 #print(f"HR, p_a_O2 at time {self.t:.2f}s for patient {self.patient_id}: {HR} {self.current_state[18]} ")
                 last_print_time = self.t
+ 
 
             # Emit data to the client every 1 seconds = output_frequency
             if self.t - last_emit_time >= self.output_frequency:
@@ -671,9 +671,14 @@ class DigitalTwinModel:
                             "heart_rate": np.round(self.current_heart_rate, 2),
                             "SaO2": np.round(self.current_SaO2, 2),
                             "MAP": np.round(np.mean(self.P_store), 2),
+                            "SAP": np.round(np.max(self.P_store), 2), ## CHECK LEX
+                            "DAP": np.round(np.min(self.P_store), 2), ## CHECK LEX
                             "RR": np.round(self.RR, 2),
                             "etCO2": np.round(self.current_state[17], 2)
                     } }
+                
+                ## Send data to the client
+                self.redisClient.add_vital_sign(self.patient_id, data)
 
                 ## Save latest data as epoch: Keep n data points for callback purposes
                 if len(self.data_epoch) == 0:
