@@ -1,0 +1,73 @@
+{
+    "O2-Suppletion": {        
+        "severity_0": {
+        "intervention": {
+            "parameters": {
+                "gas_exchange_params.FI_O2":{
+                    "value": 0.21,
+                    "type": "absolute",
+                    "action": "set",
+                    "rate": {
+                        "timeValue": 0,
+                        "timeUnit": "seconds",
+                        "count": 1
+                }
+            }
+        }
+        }
+    },
+    "severity_5": {
+        "intervention": {
+            "parameters": {
+                "gas_exchange_params.FI_O2":{
+                    "value": 0.45,
+                    "type": "absolute",
+                    "action": "set",
+                    "rate": {
+                        "timeValue": 0,
+                        "timeUnit": "seconds",
+                        "count": 1
+                }
+            }
+        }
+        }
+    },
+    "severity_10": {
+        "intervention": {
+            "parameters": {
+                "gas_exchange_params.FI_O2":{
+                    "value": 0.60,
+                    "type": "absolute",
+                    "action": "set",
+                    "rate": {
+                        "timeValue": 0,
+                        "timeUnit": "seconds",
+                        "count": 1
+                }
+            }
+        }
+        }
+    }
+
+    },
+    "NaCl-suppletion": {
+        "severity_10": {
+            "intervention": {
+                "parameters": {
+                    "V[3]":{
+                        "value": 2.5,
+                        "type": "absolute",
+                        "action": "set",
+                        "rate": {
+                            "timeValue": 1,
+                            "timeUnit": "seconds",
+                            "count": 200
+                    }
+                }
+            }
+        }
+    }
+
+
+    }
+}

@@ -27,9 +27,7 @@ device_A_UUID = uuid.uuid5(baseUUID, "12345")
 def on_metric_update(metrics_by_handle: dict):
     # we get all changed handles as parameter, iterate over them and output
     print(f"Got update on: {list(metrics_by_handle.keys())}")
-    for handle in metrics_by_handle:
-        print(handle.items())
-        print(f"Handle: {handle}")
+
 
 def on_alarm_update(alert_by_handle: dict):
     # we get all changed handles as parameter, iterate over them and output
@@ -111,7 +109,7 @@ if __name__ == '__main__':
                 my_mdib = ConsumerMdib(my_client)
                 my_mdib.init_mdib()
                 observableproperties.bind(my_mdib, metrics_by_handle=on_metric_update)
-                #observableproperties.bind(my_mdib, alert_by_handle=on_alarm_update)
+                observableproperties.bind(my_mdib, alert_by_handle=on_alarm_update)
                 found_device = True
                 set_ensemble_context(my_mdib, my_client)
     

@@ -684,6 +684,7 @@ class DigitalTwinModel:
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
             self.current_state = sol.y[:, -1]  # Update state to the latest solution
+            #self.current_state[3] += 10 
 
             # Compute variables at the latest time point
             P, F, HR, Sa_O2, RR = self.compute_variables(sol.t[-1], self.current_state)
@@ -747,6 +748,7 @@ class DigitalTwinModel:
     def processEvent(self, eventContent):
         outcome = None
         error = None
+
         """Process an event and update the model parameters."""
         if eventContent["eventType"] == "common": ## routine, no specific things -> Special events re-route to custom functions
             if eventContent["timeCategorical"] == "continuous" or eventContent["timeCategorical"] == "limited":
@@ -804,6 +806,30 @@ class DigitalTwinModel:
                     else:
                         error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
                         return False
+                
+                else:
+                    ## Parameter not in the master-parameters file, try manual CASE-MATCH
+                    match paramName:
+                        case "V[3]":
+                            paramNameNew = "self.current_state[3]"
+                        ## match future parameters
+
+                    paramValChange = float(paramValChange['value'])
+
+                    if not paramNameNw:
+                        error = f"Error: Unknown parameter {paramName} in patient {self.patient_id}"
+                        return False
+                    ## access the variable through the eval function
+                    paramVariable = eval(paramNameNew)
+
+                    if paramChange['type'] == 'absolute':
+                        if paramChange['action'] == 'decay':
+                            ## decay the parameter
+                            paramVariable += paramValChange ## decay goes both ways: in- and decrease facilitated
+                        elif paramChange['action'] == 'set':
+                            paramVariable = paramValChange
+                        else:
+                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
             
             ## recalculate cardiac elastances, resistance and uVolme
             self.compute_cardiac_parameters()
