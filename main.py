@@ -28,7 +28,7 @@ class Patient:
         self.redisClient.redis.flushdb() ## clear the database for testing purposes
         ## re-initialize the redis client
         self.redisClient = RedisInit()
-        self.ingestDemographics()
+        #self.ingestDemographics()
 
         self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
                                      sleep=sleep)
@@ -54,10 +54,9 @@ class Patient:
             "gender": gender
         }
         ## Ingest into Redis
-        if not self.redisClient.redis.exists(f"PATIENTS:{self.patient_id}"):
+        if not self.redisClient.redis.exists(f"PATIENTS:{self.ptID}"):
             #print(f"Creating patient {self.patient_id} in Redis.")
-            self.redisClient.redis.jsonset(f"PATIENTS:{self.patient_id}",
-                                        payload=json.dumps(payload))
+            self.redis.execute_command("JSON.SET", f'PATIENTS:{self.ptID}', "$", json.dumps(payload))
             ## Create the index for the patient demographics
             check = self.redis.execute_command(
                     'FT.SEARCH', 'demographics_index',
