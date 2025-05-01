@@ -1,5 +1,8 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for
-
+import random
+import json
+import time
+import calendar
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
 from redis import Redis
