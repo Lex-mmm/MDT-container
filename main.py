@@ -23,11 +23,78 @@ class Patient:
         self.data_epoch = []
         ## redis client for communication
         self.redisClient = RedisInit()
+        self.redisClient.redis.flushdb() ## clear the database for testing purposes
+        ## re-initialize the redis client
+        self.redisClient = RedisInit()
+        #self.ingestDemographics()
+
         self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
                                      sleep=sleep)
         
         self.model.redisClient = self.redisClient ## enable use further down the line
         
+    def ingestDemographics(self):
+        ## Ingest patient demographics into Redis
+        ptID = random.choice(['Erik', 'Anna', 'Lex', 'Teus', 'Joris', 'Lars', 'Martha', 'Sophie'])
+        first_name = random.choice(['Erik', 'Anna', 'Lex', 'Teus', 'Joris', 'Lars', 'Martha', 'Sophie'])
+        last_name = random.choice(['Loon, van', 'Kappen', 'Koomen', 'Klein', 'Linden, van der'])
+        gender = random.choice(['M', 'F'])
+        dob_year = random.randint(1950, 2000)
+        dob_month = random.randint(1, 12)
+        dob_day = random.randint(1, 28)
+        dob = f"{dob_year}-{dob_month:02d}-{dob_day:02d}"
+        dobNumeric = calendar.timegm(time.strptime(dob, "%Y-%m-%d")) ## convert to epoch time
+        payload = {
+            "ptID": ptID,
+            "first_name": first_name,
+            "last_name": last_name,
+            "dob": dobNumeric,
+            "gender": gender
+        }
+        ## Ingest into Redis
+        if not self.redisClient.redis.exists(f"PATIENTS:{self.ptID}"):
+            #print(f"Creating patient {self.patient_id} in Redis.")
+            self.redis.execute_command("JSON.SET", f'PATIENTS:{self.ptID}', "$", json.dumps(payload))
+            ## Create the index for the patient demographics
+            check = self.redis.execute_command(
+                    'FT.SEARCH', 'demographics_index',
+                    f'@ptID:{{{self.patient_id}}}'
+                )
+            print(f"Patient demographics created: {check}")
+
+
+    def eventListen(self):
+        streamKey = f"EVENT:{self.patient_id}"
+        print(f"Listening for events on stream: {streamKey}")
+        ## Create the stream if it doesn't exist
+        if not self.redisClient.redis.exists(streamKey):
+            self.redisClient.redis.xadd(streamKey, {'init': '1'}, id='*')
+            print(f"Stream {streamKey} created.")
+        while self.running:
+            messages = self.redisClient.redis.xread({streamKey: '0'}, count=1, block=0)
+            if messages:
+                for stream, entries in messages:
+                    for entry in entries:
+                        message_id, message_data = entry  # Unpack the message ID and data
+                        print(f"Stream: {stream}, ID: {message_id}, Data: {message_data}")
+                        
+                        # Process the message data as needed
+                        # Example: Convert JSON string to dictionary
+                        
+                        if message_data == {'init': '1'}:
+                            print("Initialization message received. Ignoring.")
+                            self.redisClient.redis.xdel(streamKey, message_id)  # Delete the message after processing
+
+                            continue
+                        else:
+                            print(f"Processing: {message_data}")
+                            self.processEvent(message_data['event'], message_data['eventSeverity'], message_data['eventType'])
+                            self.redisClient.redis.xdel(streamKey, message_id)  # Delete the message after processing
+            else:
+                print("No new messages. Sleeping for a bit.")
+                time.sleep(5)
+
+
 
     
 
