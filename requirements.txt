@@ -5,3 +5,4 @@ pandas==2.2.3
 scipy==1.13.1
 matplotlib==3.9.4
 redis==4.0.2
+sdc11073==2.2.0
