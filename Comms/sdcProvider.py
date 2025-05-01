@@ -35,7 +35,7 @@ my_uuid = uuid.uuid5(base_uuid, "12345")
 
 class SDCProvider:
     def __init__(self, active=False):
-
+        self.active = active
 
         if not self.active:
             pass
@@ -123,33 +123,35 @@ class SDCProvider:
         pass
 
     def sendData(self, dataType, data):
-
-        if dataType == "vital_sign":
-            # Send vital sign data to the SDC provider
-            timestamp = data['time']
-            for metric in data['values']:
-                print(f"Sending vital sign data: {metric} = {data['values'][metric]}")
-                if metric == "mon_sat":
-
-                    try:
-                        with self.mdibFrame.metric_state_transaction() as transaction_mgr:
-                            spoO2_state = transaction_mgr.get_state("SpO2.Measuredvalue.2F.44A5")
-                            spoO2_state.MetricValue.Value = Decimal(data['values'][metric])
-                    except Exception as e:
-                        print(f"Warning: Failed to update MDIB metric (SpO2): {e}")
-        
-        elif dataType == "alarm":
-            # Send alarm data to the SDC provider
-            timestamp = data['time']
-            metric = data['parameter']
-            match metric:
-                case "mon_sat":
-                    try:
-                        with self.mdibFrame.alert_state_transaction() as transaction_mgr:
-                            ac_state = transaction_mgr.get_state("Limit.DESAT.SpO2.Measuredvalue.2F.44A5.39663")
-                            as_state = transaction_mgr.get_state("AS.Vis.NORMALPRIOCOLORLATCHED.Limit.DESAT.SpO2.Measuredvalue.2F.44A5.39663.11566")
-                            ac_state.Presence = True
-                            as_state.Presence = pm_types.AlertSignalPresence.ON
-                    except Exception as e:
-                        print(f"Warning: Failed to update MDIB alert state: {e}")
+        if self.active == False:
             pass
+        else:
+            if dataType == "vital_sign":
+                # Send vital sign data to the SDC provider
+                timestamp = data['time']
+                for metric in data['values']:
+                    print(f"Sending vital sign data: {metric} = {data['values'][metric]}")
+                    if metric == "mon_sat":
+
+                        try:
+                            with self.mdibFrame.metric_state_transaction() as transaction_mgr:
+                                spoO2_state = transaction_mgr.get_state("SpO2.Measuredvalue.2F.44A5")
+                                spoO2_state.MetricValue.Value = Decimal(data['values'][metric])
+                        except Exception as e:
+                            print(f"Warning: Failed to update MDIB metric (SpO2): {e}")
+            
+            elif dataType == "alarm":
+                # Send alarm data to the SDC provider
+                timestamp = data['time']
+                metric = data['parameter']
+                match metric:
+                    case "mon_sat":
+                        try:
+                            with self.mdibFrame.alert_state_transaction() as transaction_mgr:
+                                ac_state = transaction_mgr.get_state("Limit.DESAT.SpO2.Measuredvalue.2F.44A5.39663")
+                                as_state = transaction_mgr.get_state("AS.Vis.NORMALPRIOCOLORLATCHED.Limit.DESAT.SpO2.Measuredvalue.2F.44A5.39663.11566")
+                                ac_state.Presence = True
+                                as_state.Presence = pm_types.AlertSignalPresence.ON
+                        except Exception as e:
+                            print(f"Warning: Failed to update MDIB alert state: {e}")
+                pass

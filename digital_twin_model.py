@@ -748,7 +748,8 @@ class DigitalTwinModel:
     def processEvent(self, eventContent):
         outcome = None
         error = None
-
+        
+        ##print(f"Started processing: {eventContent}")
         """Process an event and update the model parameters."""
         if eventContent["eventType"] == "common": ## routine, no specific things -> Special events re-route to custom functions
             if eventContent["timeCategorical"] == "continuous" or eventContent["timeCategorical"] == "limited":
@@ -810,24 +811,25 @@ class DigitalTwinModel:
                 else:
                     ## Parameter not in the master-parameters file, try manual CASE-MATCH
                     match paramName:
-                        case "V[3]":
+                        case "venous_compartiment_3":
                             paramNameNew = "self.current_state[3]"
                         ## match future parameters
 
-                    paramValChange = float(paramValChange['value'])
-
-                    if not paramNameNw:
+                    if not paramNameNew:
                         error = f"Error: Unknown parameter {paramName} in patient {self.patient_id}"
                         return False
                     ## access the variable through the eval function
                     paramVariable = eval(paramNameNew)
-
+                    print(f"+++ ParamChange = {paramChange} +++")
                     if paramChange['type'] == 'absolute':
                         if paramChange['action'] == 'decay':
                             ## decay the parameter
+                            print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
                             paramVariable += paramValChange ## decay goes both ways: in- and decrease facilitated
                         elif paramChange['action'] == 'set':
-                            paramVariable = paramValChange
+                            paramVariable = paramValChange 
+                            print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
+
                         else:
                             error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
             

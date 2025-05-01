@@ -19,20 +19,23 @@ class Therapy:
         """
         Process the therapeutic event and update the master parameters.
         """
+
         therapy = self.therapy[event]
         if therapy:
-            therapyData = therapy[f"severity_{eventSeverity}"]['intervention']
+            therapyData = therapy[f"severity_{eventSeverity}"]['intervention']['parameters']
             for paramName in therapyData:
                 ## Name of the parameter to alter
                 value = therapyData[paramName]['value']
                 type = therapyData[paramName]['type']
                 rate = therapyData[paramName]['rate']
+                action = therapyData[paramName]['action']
+                
                 rateTimeValue = rate['timeValue']
                 rateTimeUnit = rate['timeUnit']
-                rateTimeCount = rate['timeCount']
-                timeCategorical = 'limited' if isinstance(rateTimeCount, int) else 'continuous'
+                rateTimeCount = rate['count']
+                timeCategorical = 'continuous' if isinstance(rateTimeCount, str) else 'limited'
                 startShell = {
-                    "event": therapy,
+                    "event": event,
                     "eventSeverity": eventSeverity,
                     "eventType": "common",
                     "timeCategorical": timeCategorical,
@@ -45,11 +48,11 @@ class Therapy:
                 paramFillShell = {
                     "name": paramName,
                     "value": value,
-                    "action": "set",
+                    "action": action,
                     "type": type
                 }
                 startShell["parameters"].append(paramFillShell)
             
             print(f"Starting shell is: {startShell}")
-            return startShell
+            return [ startShell ]
             

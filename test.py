@@ -48,3 +48,10 @@ from Events.Pathologies.pathology import Pathology
 pathology = Pathology()
 testing = pathology.CalcParamPercent(3, "cardio_parameters.elastance.max.9")
 print(f"Testing: {testing}")
+
+
+{'event': 'myocardialInfarction', 
+            'eventSeverity': '5', 
+            'eventType': 'common', 'timeCategorical': 'limited', 'lastEmission': 0, 'timeInterval': 0, 'timeUnit': 'seconds', 
+            'eventCount': 1, 
+            'parameters': [{'name': 'gas_exchange_params.FI_O2', 'value': 0.45, 'action': 'set', 'type': 'absolute'}]}
