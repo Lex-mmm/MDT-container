@@ -3,8 +3,6 @@ import pyqtgraph as pg
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt6.QtCore import QTimer, Qt
 from random import sample
-import requests
-import pyodbc
 from datetime import datetime, timedelta
 # Always start by initializing Qt (only once per application)
 
