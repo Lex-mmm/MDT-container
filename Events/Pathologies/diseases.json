@@ -87,6 +87,31 @@
         }
     },
     "pneumonia": {
+        "severity_1": {
+            "startingConditions": {
+                "bloodflows.sh": -25,
+                "params.w":-25,
+                "params.K_O2": -25,
+                "params.K_CO2": -25,
+                "params.K_O2_tau": -25
+
+            },
+            "decay": {
+                "bloodflows.sh": {
+                    "min": -20,
+                    "max": -30,
+                    "timeValue": 60,
+                    "timeUnit": "m"
+                }
+            },
+            "recovery": {
+                "bloodflows.sh": {
+                    "min": -10,
+                    "max": 0,
+                    "unit": 60
+                }
+            }
+        }
 
     }
 }
