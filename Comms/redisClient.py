@@ -79,7 +79,7 @@ class RedisInit:
                     'SCHEMA',
                     '$.ptID', 'AS', 'ptID', 'TAG',
                     '$.timestamp', 'AS', 'timestamp', 'NUMERIC', 'SORTABLE',
-                    '$.alarm_msg', 'AS', 'alarm_msg', 'TAG',
+                    '$.alarm_msg', 'AS', 'alarm_msg', 'TEXT',
                     '$.alarm_prio', 'AS', 'alarm_prio', 'TAG',
                     '$.alarm_status', 'AS', 'alarm_status', 'TAG',
             )
@@ -88,8 +88,26 @@ class RedisInit:
             print(f"Error creating indices: {e}")
             print("ALARM INDEX.")
 
+        ## Patient demographics
+        try:
+            print("Initializing patient index...")
+            self.redis.execute_command(
+                    'FT.CREATE', 'demographics_index', 'ON', 'JSON', 'PREFIX', '1', 'PATIENTS:',
+                    'SCHEMA',
+                    '$.ptID', 'AS', 'ptID', 'TAG',
+                    '$.first_name', 'AS', 'first_name', 'TEXT',
+                    '$.last_name', 'AS', 'last_name', 'TEXT',
+                    '$.dob', 'AS', 'dob', 'NUMERIC', 'SORTABLE',
+                    '$.gender', 'AS', 'gender', 'TAG',
+            )
+            print("patient index created.")
+        except Exception as e:
+            print(f"Error creating indices: {e}")
+            print("DEMOGRAPHICS INDEX.")
+
+
     def add_vital_sign(self, ptID, payload):
-        print(f"Adding vital sign for patient {ptID} with payload: {payload}")
+        #print(f"Adding vital sign for patient {ptID} with payload: {payload}")
         vitalEntry = {
             "ptID": ptID,
             "timestamp": int(calendar.timegm(payload['time'].timetuple())),
@@ -100,29 +118,35 @@ class RedisInit:
             "mon_ibp_mean": float(payload['values']["MAP"]),
             "mon_rr": float(payload['values']["RR"]),
         }
-        print(f"Vital sign entry: {vitalEntry}")
+        #print(f"Vital sign entry: {vitalEntry}")
         ## insert the entry into the VITALS index table:
         try:
             key = f"VITALS:{ptID}:{int(vitalEntry['timestamp'])}"  # Ensure key matches the prefix
             self.redis.execute_command("JSON.SET", key, "$", json.dumps(vitalEntry))
-            #print(f"Inserted vital sign entry for patient {ptID}.")
+            self.sdcComms("VITALS", payload) ## Send over SDC
+
         except Exception as e:
             print(f"Error inserting vital sign entry: {e}")
 
-
             
-    def add_alarm(self, ptID, timestamp, alarm_msg, alarm_prio, alarm_status):
-        alarmEntry = {
-            "ptID": ptID,
-            "timestamp": timestamp,
-            "alarm_msg": alarm_msg,
-            "alarm_prio": alarm_prio,
-            "alarm_status": alarm_status
-        }
+    def add_alarm(self, ptID, payload):
+        payload['timestamp'] = int(calendar.timegm(payload['timestamp'].timetuple()))
+        print(f"Adding alarm for patient {ptID} with payload: {payload}")
         ## insert the entry into the ALARMS index table:
         try:
-            self.redis.json().set(f"ALARMS:{ptID}:{timestamp}", '$', alarmEntry)
-            print(f"Alarm entry added for patient {ptID} at {timestamp}.")
+            key = f"ALARMS:{payload['ptID']}:{payload['timestamp']}"  # Ensure key matches the prefix
+            result = self.redis.execute_command("JSON.SET", key, "$", json.dumps(payload))
+            print(f"Result: {result}")
+            self.sdcComms("ALARMS", payload) ## Send over SDC
+            
+
         except Exception as e:
             print(f"Error adding alarm entry: {e}")
     
+
+
+    def sdcComms(self, eventType, payload):
+        ## send the data to the SDC
+            # EventType = "VITALS" or "ALARMS"
+
+        pass

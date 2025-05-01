@@ -28,7 +28,7 @@ class DigitalTwinModel:
 
         self.pathologies = Pathology()  # Initialize pathologie-events 
         self.therapeutic = Therapy()
-        self.alarmModule = alarmModule()  # Initialize alarm module
+        self.alarmModule = alarmModule(self.patient_id)  # Initialize alarm module
         self.sleep = sleep  # Sleep between iterations, boolean
 
         self.events = [] ## Actionable event introduction

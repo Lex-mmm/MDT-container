@@ -1,9 +1,10 @@
 import json
 from Alarms.AscomMathFunctions import AscomMathFunctions
 from datetime import datetime, timedelta
+from Comms.redisClient import RedisInit
 
 class alarmModule:
-    def __init__(self):
+    def __init__(self, pt_id):
         with open ("Alarms/static/initialSetting.json", "r") as f:
             payload = json.load(f)
             self.thresholdAlarm = payload["AlarmSettingThreshold"]
@@ -19,7 +20,8 @@ class alarmModule:
         self.AlgoHorizon = 60 ## 60-seconds horizon for the algorithm-based alarms
 
         self.alarms = []
-
+        self.comms = RedisInit()
+        self.ptID = pt_id
 
     def evaluate_data(self, curr_data, historic_data):
         ''' Evaluate the alarm state for the current data.
@@ -73,43 +75,61 @@ class alarmModule:
     def getThresholdSetting(self, parameter):
         return self.thresholdAlarm[parameter]
     
-    def evaluateThresholdAlarmState(self, alarmType, parameter, state, message, timestamp):
+    def evaluateThresholdAlarmState(self, alarmType, parameter, state, message, timestamp, priority):
         curr_state = self.thresholdAlarm[parameter]["AlarmState"][alarmType]
         if curr_state != state and state == True: # alarm state changed, activated state
             self.thresholdAlarm[parameter]["AlarmState"][alarmType] = state
 
-            self.alarmTrigger(parameter, alarmType, message, timestamp)
+            self.alarmTrigger(parameter, alarmType, message, timestamp, priority)
 
         elif curr_state != state and state == False: # alarm state changed, deactivated
             self.thresholdAlarm[parameter]["AlarmState"][alarmType] = state
-            self.alarmResolve(parameter, alarmType, message, timestamp)
+            self.alarmResolve(parameter, alarmType, message, timestamp, priority)
     
 
-    def alarmTrigger(self, parameter, alarmType, message, timestamp):  
+    def alarmTrigger(self, parameter, alarmType, message, timestamp, priority):  
         ## trigger callback function
-        print(f"Timestamp: {timestamp}")
-        self.alarms.insert(0, f"t:{timestamp} | TRIGGERED: {message}")
+        payload = {
+            "ptID": self.ptID,
+            "timestamp": timestamp,
+            "alarm_msg": message,
+            "alarm_prio": priority,
+            "alarm_status": "ON",
+        }
+        self.comms.add_alarm(self.ptID, payload)
+
+        self.alarms.insert(0, f"{payload['timestamp']} | TRIGGERED: {payload['alarm_msg']}")
         #print(f"Alarm TRIGGERED for {parameter} with type {alarmType}. Message: {message}")
 
-    def alarmResolve(self, parameter, alarmType, message, timestamp):
+    def alarmResolve(self, parameter, alarmType, message, timestamp, priority):
         ## resolve callback function
-        self.alarms.insert(0, f"t:{timestamp} | resolved: {message}")
+        payload = {
+            "ptID": str(self.ptID),
+            "timestamp": timestamp,
+            "alarm_msg": message,
+            "alarm_prio": priority,
+            "alarm_status": "OFF",
+        }
+        self.comms.add_alarm(self.ptID, payload)
+        self.alarms.insert(0, f"{payload['timestamp']} | resolved: {payload['alarm_msg']}")
         #print(f"Alarm RESOLVED for {parameter} with type {alarmType}.")
 
     def THRESHOLD_checkAlarmValue(self, timestamp, value, parameter):
         paramSetting = self.getThresholdSetting(parameter)
         if paramSetting["Active"] == True:
+            ## pre-compile messages and priorities
+            messageHigh, priorityHigh = self.matchAlarmMessage("HIGH", parameter)
+            messageLow, priorityLow = self.matchAlarmMessage("LOW", parameter)
+
             if paramSetting["LowerLimit"] < value < paramSetting["UpperLimit"]:
-                self.evaluateThresholdAlarmState("HIGH", parameter, False, self.matchAlarmMessage("HIGH", parameter), timestamp)
-                self.evaluateThresholdAlarmState("LOW", parameter, False, self.matchAlarmMessage("LOW", parameter), timestamp)
+                self.evaluateThresholdAlarmState("HIGH", parameter, False, messageHigh, timestamp, None)
+                self.evaluateThresholdAlarmState("LOW", parameter, False, messageLow, timestamp, None)
                 return None ## no alarm, all within range
             
             elif value > paramSetting["UpperLimit"]:
-                message = self.matchAlarmMessage("HIGH", parameter)
-                self.evaluateThresholdAlarmState("HIGH", parameter, True, message, timestamp)
+                self.evaluateThresholdAlarmState("HIGH", parameter, True, messageHigh, timestamp, priorityHigh)
             elif value < paramSetting["LowerLimit"]:
-                message = self.matchAlarmMessage("LOW", parameter)
-                self.evaluateThresholdAlarmState("LOW", parameter, True, message, timestamp)
+                self.evaluateThresholdAlarmState("LOW", parameter, True, messageLow, timestamp, priorityLow)
         
     def matchAlarmMessage(self, alarmType, parameter):
         if parameter not in self.messageConversion:
@@ -140,30 +160,33 @@ class alarmModule:
                 envelopValue = envelopEnsemble["envelop_total"] if envelopEnsemble["envelop_total"] else 0
             else:
                 envelopValue = 0.0 ## no data outside of range
-
-            if envelopValue < yellow:
-                self.evaluateAlgoAlarmState("yellow", parameter, False, self.matchAlarmMessage("ENVELOP_YELLOW", parameter), max(data["time"]))
-                self.evaluateAlgoAlarmState("orange", parameter, False, self.matchAlarmMessage("ENVELOP_ORANGE", parameter), max(data["time"]))
-                self.evaluateAlgoAlarmState("red", parameter, False, self.matchAlarmMessage("ENVELOP_RED", parameter), max(data["time"]))
+            
+            ## pre-compile messages and priorities
+            messageYellow, priorityYellow = self.matchAlarmMessage("ENVELOP_YELLOW", parameter)
+            messageOrange, priorityOrange = self.matchAlarmMessage("ENVELOP_ORANGE", parameter)
+            messageRed, priorityRed = self.matchAlarmMessage("ENVELOP_RED", parameter)
+            if envelopValue < yellow: ## no alarms, resolve all if any
+                self.evaluateAlgoAlarmState("yellow", parameter, False, messageYellow, max(data["time"]), None)
+                self.evaluateAlgoAlarmState("orange", parameter, False, messageOrange, max(data["time"]), None)
+                self.evaluateAlgoAlarmState("red", parameter, False, messageRed, max(data["time"]), None)
 
             
-            elif envelopValue > red:
-                message = self.matchAlarmMessage("ENVELOP_RED", parameter)
-                self.evaluateAlgoAlarmState("red", parameter, True, message, max(data["time"]))
-            elif envelopValue > orange:
-                message = self.matchAlarmMessage("ENVELOP_ORANGE", parameter)
-                self.evaluateAlgoAlarmState("orange", parameter, True, message, max(data["time"]))
-            elif envelopValue > yellow:
-                message = self.matchAlarmMessage("ENVELOP_YELLOW", parameter)
-                self.evaluateAlgoAlarmState("yellow", parameter, True, message, max(data["time"]))
+            elif envelopValue >= red:
+                self.evaluateAlgoAlarmState("red", parameter, True, messageRed, max(data["time"]), priorityRed)
+                self.evaluateAlgoAlarmState("orange", parameter, False, messageOrange, max(data["time"]), None)
+            elif red > envelopValue >= orange:
+                self.evaluateAlgoAlarmState("orange", parameter, True, messageOrange, max(data["time"]), priorityOrange)
+                self.evaluateAlgoAlarmState("yellow", parameter, False, messageYellow, max(data["time"]), None)
+            elif orange > envelopValue >= yellow:
+                self.evaluateAlgoAlarmState("yellow", parameter, True, messageYellow, max(data["time"]), priorityYellow)
 
 
-    def evaluateAlgoAlarmState(self, alarmType, parameter, state, message, timestamp):
+    def evaluateAlgoAlarmState(self, alarmType, parameter, state, message, timestamp, priority):
         curr_state = self.algoAlarm[parameter]["AlarmState"][alarmType]
         if curr_state != state and state == True: # alarm state changed, activated state
             self.algoAlarm[parameter]["AlarmState"][alarmType] = state
-            self.alarmTrigger(parameter, alarmType, message, timestamp)
+            self.alarmTrigger(parameter, alarmType, message, timestamp, priority)
 
         elif curr_state != state and state == False: # alarm state changed, deactivated
             self.algoAlarm[parameter]["AlarmState"][alarmType] = state
-            self.alarmResolve(parameter, alarmType, message, timestamp)
+            self.alarmResolve(parameter, alarmType, message, timestamp, priority)
