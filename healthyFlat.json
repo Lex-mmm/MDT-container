@@ -45,18 +45,18 @@
 
     "params.K_O2": {
         "value": 0.2,
-        "min": 0.2,
-        "max": 0.2
+        "min": 0.05,
+        "max": 0.8
     },
     "params.k_O2": {
         "value": 0.046,
-        "min": 0.046,
-        "max": 0.046
+        "min": 0.02,
+        "max": 0.08
     },
     "params.K_CO2": {
         "value": 0.0065,
-        "min": 0.0065,
-        "max": 0.0065
+        "min": 0.003,
+        "max": 0.01
     },
     "params.k_CO2": {
         "value": 0.244,
@@ -65,8 +65,8 @@
     },
     "params.K_O2_tau": {
         "value": 0.0025,
-        "min": 0.0025,
-        "max": 0.0025
+        "min": 0.001,
+        "max": 0.005
     },
 
 
