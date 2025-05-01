@@ -55,7 +55,7 @@ class Patient:
         }
         ## Ingest into Redis
         if not self.redisClient.redis.exists(f"PATIENTS:{self.patient_id}"):
-            print(f"Creating patient {self.patient_id} in Redis.")
+            #print(f"Creating patient {self.patient_id} in Redis.")
             self.redisClient.redis.jsonset(f"PATIENTS:{self.patient_id}",
                                         payload=json.dumps(payload))
             ## Create the index for the patient demographics
@@ -63,21 +63,7 @@ class Patient:
                     'FT.SEARCH', 'demographics_index',
                     f'@ptID:{{{self.patient_id}}}'
                 )
-            print(f"Patient demographics index created: {check}")
-        self.redisClient.redis.jsonset(f"PATIENTS:{self.patient_id}",
-                                        payload=json.dumps()
-                    self.redis.execute_command(
-                    'FT.CREATE', 'demographics_index', 'ON', 'JSON', 'PREFIX', '1', 'PATIENTS:',
-                    'SCHEMA',
-                    '$.ptID', 'AS', 'ptID', 'TAG',
-                    '$.first_name', 'AS', 'first_name', 'TEXT',
-                    '$.last_name', 'AS', 'last_name', 'TEXT',
-                    '$.dob', 'AS', 'dob', 'NUMERIC', 'SORTABLE',
-                    '$.gender', 'AS', 'gender', 'TAG',
-            )
-
-
-
+            print(f"Patient demographics created: {check}")
 
 
     def eventListen(self):
