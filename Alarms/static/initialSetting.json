@@ -112,18 +112,18 @@
 },
 "AlgoTightness":{
     "loose":{
-        "yellow": 500,
-        "orange": 5000,
+        "yellow": 2500,
+        "orange": 25000,
         "red": 50000
     },
     "average":{
-        "yellow": 250,
-        "orange": 2500,
+        "yellow": 1000,
+        "orange": 5000,
         "red": 25000
     },
     "tight":{
-        "yellow": 100,
-        "orange": 1000,
+        "yellow": 500,
+        "orange": 2500,
         "red": 10000
     }
 },

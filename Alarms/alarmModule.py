@@ -79,7 +79,6 @@ class alarmModule:
         curr_state = self.thresholdAlarm[parameter]["AlarmState"][alarmType]
         if curr_state != state and state == True: # alarm state changed, activated state
             self.thresholdAlarm[parameter]["AlarmState"][alarmType] = state
-
             self.alarmTrigger(parameter, alarmType, message, timestamp, priority)
 
         elif curr_state != state and state == False: # alarm state changed, deactivated
@@ -90,11 +89,13 @@ class alarmModule:
     def alarmTrigger(self, parameter, alarmType, message, timestamp, priority):  
         ## trigger callback function
         payload = {
-            "ptID": self.ptID,
+            "ptID": str(self.ptID),
             "timestamp": timestamp,
             "alarm_msg": message,
             "alarm_prio": priority,
             "alarm_status": "ON",
+            "parameter": parameter,
+            "alarm_type": alarmType
         }
         self.comms.add_alarm(self.ptID, payload)
 
@@ -109,6 +110,8 @@ class alarmModule:
             "alarm_msg": message,
             "alarm_prio": priority,
             "alarm_status": "OFF",
+            "parameter": parameter,
+            "alarm_type": alarmType
         }
         self.comms.add_alarm(self.ptID, payload)
         self.alarms.insert(0, f"{payload['timestamp']} | resolved: {payload['alarm_msg']}")
@@ -149,7 +152,7 @@ class alarmModule:
 
     def ALGO_checkAlarmValue(self, data, parameter):
         paramSetting = self.getAlgoSetting(parameter)
-        message = None
+
         if paramSetting["Active"] == True:
             tightness = paramSetting["tightness"]
             yellow, orange, red = self.getAlgoTightnessValue(tightness)
@@ -165,21 +168,25 @@ class alarmModule:
             messageYellow, priorityYellow = self.matchAlarmMessage("ENVELOP_YELLOW", parameter)
             messageOrange, priorityOrange = self.matchAlarmMessage("ENVELOP_ORANGE", parameter)
             messageRed, priorityRed = self.matchAlarmMessage("ENVELOP_RED", parameter)
-            if envelopValue < yellow: ## no alarms, resolve all if any
+
+            if envelopValue >= red:
+                self.evaluateAlgoAlarmState("red", parameter, True, messageRed, max(data["time"]), priorityRed)
+
+            elif envelopValue >= orange:
+                self.evaluateAlgoAlarmState("red", parameter, False, messageRed, max(data["time"]), None)
+                self.evaluateAlgoAlarmState("yellow", parameter, False, messageYellow, max(data["time"]), None)
+                ## orange alarm is active
+                self.evaluateAlgoAlarmState("orange", parameter, True, messageOrange, max(data["time"]), priorityOrange)
+            elif envelopValue >= yellow:
+                self.evaluateAlgoAlarmState("red", parameter, False, messageRed, max(data["time"]), None)
+                self.evaluateAlgoAlarmState("orange", parameter, False, messageOrange, max(data["time"]), None)
+                self.evaluateAlgoAlarmState("yellow", parameter, True, messageYellow, max(data["time"]), priorityYellow)
+
+            else: ## envelopValue < yellow - deactivate all alarms
                 self.evaluateAlgoAlarmState("yellow", parameter, False, messageYellow, max(data["time"]), None)
                 self.evaluateAlgoAlarmState("orange", parameter, False, messageOrange, max(data["time"]), None)
                 self.evaluateAlgoAlarmState("red", parameter, False, messageRed, max(data["time"]), None)
-
-            
-            elif envelopValue >= red:
-                self.evaluateAlgoAlarmState("red", parameter, True, messageRed, max(data["time"]), priorityRed)
-                self.evaluateAlgoAlarmState("orange", parameter, False, messageOrange, max(data["time"]), None)
-            elif red > envelopValue >= orange:
-                self.evaluateAlgoAlarmState("orange", parameter, True, messageOrange, max(data["time"]), priorityOrange)
-                self.evaluateAlgoAlarmState("yellow", parameter, False, messageYellow, max(data["time"]), None)
-            elif orange > envelopValue >= yellow:
-                self.evaluateAlgoAlarmState("yellow", parameter, True, messageYellow, max(data["time"]), priorityYellow)
-
+                
 
     def evaluateAlgoAlarmState(self, alarmType, parameter, state, message, timestamp, priority):
         curr_state = self.algoAlarm[parameter]["AlarmState"][alarmType]

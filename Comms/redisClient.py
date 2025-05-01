@@ -4,7 +4,7 @@ import time
 #import docker
 import json
 import calendar
-
+from Comms.sdcProvider import SDCProvider
 class RedisInit:
     def __init__(self, host='host.docker.internal', port=6379):
         ## startup the docker if not yet started
@@ -47,7 +47,9 @@ class RedisInit:
         print("Connected to Redis")
         self.createIndices()
         print("Indices created")
- 
+
+        self.sdcProvider = SDCProvider()
+        self.sdcProvider.start() ## start the SDC provider
 
     def createIndices(self):
 
@@ -94,7 +96,7 @@ class RedisInit:
             self.redis.execute_command(
                     'FT.CREATE', 'demographics_index', 'ON', 'JSON', 'PREFIX', '1', 'PATIENTS:',
                     'SCHEMA',
-                    '$.ptID', 'AS', 'ptID', 'TAG',
+                    '$.ptID', 'AS', 'ptID', 'TAG', 
                     '$.first_name', 'AS', 'first_name', 'TEXT',
                     '$.last_name', 'AS', 'last_name', 'TEXT',
                     '$.dob', 'AS', 'dob', 'NUMERIC', 'SORTABLE',
@@ -109,7 +111,7 @@ class RedisInit:
     def add_vital_sign(self, ptID, payload):
         #print(f"Adding vital sign for patient {ptID} with payload: {payload}")
         vitalEntry = {
-            "ptID": ptID,
+            "ptID": str(ptID),
             "timestamp": int(calendar.timegm(payload['time'].timetuple())),
             "mon_hr": float(payload['values']["heart_rate"]),
             "mon_sat": float(payload['values']["SaO2"]),
@@ -130,11 +132,13 @@ class RedisInit:
 
             
     def add_alarm(self, ptID, payload):
+
         payload['timestamp'] = int(calendar.timegm(payload['timestamp'].timetuple()))
+        payload['ptID'] = str(ptID)
         print(f"Adding alarm for patient {ptID} with payload: {payload}")
         ## insert the entry into the ALARMS index table:
         try:
-            key = f"ALARMS:{payload['ptID']}:{payload['timestamp']}"  # Ensure key matches the prefix
+            key = f"ALARMS:{str(payload['ptID'])}:{payload['timestamp']}"  # Ensure key matches the prefix
             result = self.redis.execute_command("JSON.SET", key, "$", json.dumps(payload))
             print(f"Result: {result}")
             self.sdcComms("ALARMS", payload) ## Send over SDC
@@ -145,8 +149,8 @@ class RedisInit:
     
 
 
+
     def sdcComms(self, eventType, payload):
         ## send the data to the SDC
             # EventType = "VITALS" or "ALARMS"
-
-        pass
+        self.sdcProvider.sendData(eventType, payload)

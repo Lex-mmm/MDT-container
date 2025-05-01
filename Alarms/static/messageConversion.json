@@ -10,15 +10,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - HR Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - HR Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - HR Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - HR Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - HR Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - HR Red Envelop",
                 "messagePriority": "HIGH"
             }
         },
@@ -32,15 +32,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - SpO2 Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - SpO2 Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - SpO2 Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - SpO2 Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - SpO2 Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - SpO2 Red Envelop",
                 "messagePriority": "HIGH"
             }
         },
@@ -54,15 +54,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - BPd Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - BPd Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - BPd Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - BPd Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - BPd Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - BPd Red Envelop",
                 "messagePriority": "HIGH"
             }
         },
@@ -76,15 +76,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - ABPs Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPs Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - ABPs Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPs Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - ABPs Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPs Red Envelop",
                 "messagePriority": "HIGH"
             }
         },
@@ -98,15 +98,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - ABPm Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPm Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - ABPm Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPm Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - ABPm Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - ABPm Red Envelop",
                 "messagePriority": "HIGH"
             }
         },
@@ -120,15 +120,15 @@
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_YELLOW":{
-                "message": "PHILIPS MONITOR - RR Yellow Envelop Triggered",
+                "message": "PHILIPS MONITOR - RR Yellow Envelop",
                 "messagePriority": "LOW"
             },
             "ENVELOP_ORANGE":{
-                "message": "PHILIPS MONITOR - RR Orange Envelop Triggered",
+                "message": "PHILIPS MONITOR - RR Orange Envelop",
                 "messagePriority": "MEDIUM"
             },
             "ENVELOP_RED":{
-                "message": "PHILIPS MONITOR - RR Red Envelop Triggered",
+                "message": "PHILIPS MONITOR - RR Red Envelop",
                 "messagePriority": "HIGH"
             }
         }

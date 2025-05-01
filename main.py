@@ -19,7 +19,7 @@ class Patient:
     def __init__(self, patient_id, param_file="parameters.json", pat_char=None, sleep=True):
 
         ## Initialize starting instance variables
-        self.patient_id = patient_id
+        self.patient_id = random.randint(1000, 9999) ## random patient ID
         self.param_file = param_file
         self.running = False ## start right away
         self.data_epoch = []
@@ -28,17 +28,16 @@ class Patient:
         self.redisClient.redis.flushdb() ## clear the database for testing purposes
         ## re-initialize the redis client
         self.redisClient = RedisInit()
-        #self.ingestDemographics()
+        self.ingestDemographics()
 
-        self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
+        self.model = DigitalTwinModel(self.patient_id, param_file, data_callback=None, 
                                      sleep=sleep)
         
         self.model.redisClient = self.redisClient ## enable use further down the line
         
     def ingestDemographics(self):
         ## Ingest patient demographics into Redis
-        ptID = random.choice(['Erik', 'Anna', 'Lex', 'Teus', 'Joris', 'Lars', 'Martha', 'Sophie'])
-        first_name = random.choice(['Erik', 'Anna', 'Lex', 'Teus', 'Joris', 'Lars', 'Martha', 'Sophie'])
+        first_name = random.choice(['Erik', 'Lex', 'Teus','Jan', 'Piet', 'Kees', 'Henk'])
         last_name = random.choice(['Loon, van', 'Kappen', 'Koomen', 'Klein', 'Linden, van der'])
         gender = random.choice(['M', 'F'])
         dob_year = random.randint(1950, 2000)
@@ -47,20 +46,20 @@ class Patient:
         dob = f"{dob_year}-{dob_month:02d}-{dob_day:02d}"
         dobNumeric = calendar.timegm(time.strptime(dob, "%Y-%m-%d")) ## convert to epoch time
         payload = {
-            "ptID": ptID,
-            "first_name": first_name,
-            "last_name": last_name,
-            "dob": dobNumeric,
-            "gender": gender
+            "ptID": str(self.patient_id),
+            "first_name": str(first_name),
+            "last_name": str(last_name),
+            "dob": (dobNumeric),
+            "gender": str(gender)
         }
         ## Ingest into Redis
-        if not self.redisClient.redis.exists(f"PATIENTS:{self.ptID}"):
+        print(f"Patient demographics: {payload}")
+        if not self.redisClient.redis.exists(f"PATIENTS:{self.patient_id}"):
             #print(f"Creating patient {self.patient_id} in Redis.")
-            self.redis.execute_command("JSON.SET", f'PATIENTS:{self.ptID}', "$", json.dumps(payload))
+            self.redisClient.redis.execute_command("JSON.SET", f'PATIENTS:{self.patient_id}', "$", json.dumps(payload))
             ## Create the index for the patient demographics
-            check = self.redis.execute_command(
-                    'FT.SEARCH', 'demographics_index',
-                    f'@ptID:{{{self.patient_id}}}'
+            check = self.redisClient.redis.execute_command(
+                    'FT.SEARCH', 'demographics_index', '*'
                 )
             print(f"Patient demographics created: {check}")
 
