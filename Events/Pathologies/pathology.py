@@ -3,19 +3,20 @@ import json
 import pandas as pd
 from scipy.interpolate import CubicSpline, interp1d
 from matplotlib import pyplot as plt
-
+import random
+import statistics
 
 class Pathology:
     def __init__(self):
         with open("healthyFlat.json", "r") as f:
             splineParameters = json.load(f)
-        
+        self.splineParameters = splineParameters    
         self.splineFunctions = {}
         for parameter in splineParameters:
             self.splineFunctions[parameter] = self.splineSolver(splineParameters[parameter])
             ## Spline functionality returns the value for the given parameter
         
-        with open("Pathologies/diseases.json", "r") as f:
+        with open("Events/Pathologies/diseases.json", "r") as f:
             self.diseases = json.load(f)
     
     def splineSolver(self, parameterValues):
@@ -51,9 +52,8 @@ class Pathology:
                 cs = CubicSpline(x_points, y_points, bc_type='natural')
             return cs
 
-
-
     def solveEvent(self, event, eventSeverity, masterParameters):
+        ''' DEPRICATED: Use processPathology instead'''
         disease = self.diseases[event]
         if disease:
             diseaseParam = disease[f"severity_{eventSeverity}"]
@@ -72,31 +72,129 @@ class Pathology:
 
             ## change parameters in the master parameter file
 
-    def plot_spline(self, spline_function, x_min, x_max, num_points=100):
-        """
-        Plots a spline function over a specified range.
+    def CalcParamPercent(self, paramValue, paramName):
+        curr_val = paramValue
 
-        Args:
-            spline_function (callable): The spline function to plot.
-            x_min (float): The minimum x value for the plot.
-            x_max (float): The maximum x value for the plot.
-            num_points (int): The number of points to use for plotting (default: 100).
-        """
-        # Generate x values
-        x_values = np.linspace(x_min, x_max, num_points)
-        # Evaluate the spline function for each x value
-        y_values = spline_function(x_values)
-        
-        # Plot the spline
-        plt.figure(figsize=(8, 6))
-        plt.plot(x_values, y_values, label="Spline Function", color="blue")
-        plt.title("Spline Function Plot")
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.grid(True)
-        plt.legend()
-        plt.show()
+        paramContent = self.splineParameters[paramName]
+        paramMin = paramContent["min"]
+        paramMax = paramContent["max"]
+        paramMean = paramContent["value"]
 
-    # Example usage
-    # Assuming `cs` is a spline function created using CubicSpline or interp1d
-    # plot_spline(cs, x_min=0, x_max=10)
+        if paramMin == paramMean:
+            searchMin = 0
+            searchMax = 100
+        elif paramMax == paramMean:
+            searchMin = -100
+            searchMax = 0
+        else:
+            searchMin = -100
+            searchMax = 100
+
+        print(f"min: {paramMin}, max: {paramMax}, value: {curr_val}")
+        ## get the function for the parameter
+        paramFuncton = self.splineFunctions[paramName]
+        # create theoretical values for the parameter
+        x_values = np.linspace(searchMin, searchMax, int(((searchMax - searchMin) / 0.1)+1) ) ## granularity
+        ## get the values for the parameter
+        y_values = paramFuncton(x_values)
+
+        # Find where the spline crosses the target Y value
+        indices = np.where(np.isclose(y_values, curr_val, atol=0.01))[0]
+
+        ## get the indices of the values that are close to the current value
+        listVal = x_values[indices].tolist()
+
+        return statistics.mean(listVal) ## average percentage: No die-hard granularity
+
+        ## return the mean value of the list -> Average percentage for the current parameter, if multiple options
+
+    
+    def processPathology(self, eventName, eventSeverity):
+        '''
+        Input: 
+            event: string, name of the event
+            eventSeverity: int, severity of the event
+        Output:
+            processedEvent: events (n >=1), with following structure:
+            {
+                "event": eventName,                     String with name (e.g. myocardialInfarction)
+                "eventSeverity": eventSeverity,         0 || 1 || 2 || 3 etc...
+                "eventType": eventType,                 Disease || Therapy
+                "timeCategorical": timeCategorical,     Continuous || Limited
+                "lastEmission": lastEmission,           Last time of event emission (processed time), standard 0
+                "timeInterval": timeInterval,           Time interval of the event (e.g. 0.5) for next processing
+                "timeUnit": timeUnit,                   Time unit of the event (e.g. hours)
+                "eventCount": eventCount,               Number of events, only used in case of limited timing: for single use, use n=1
+                "parameters": {
+                    name: {
+                        value: [ Int || float ],
+                        action: "set" || "decay"
+                        type: "absolute" || "relative
+                    },
+                    .... 
+            }
+        '''
+
+        # Get the event from the diseases.json file
+        disease = self.diseases[eventName]
+        if disease:
+            diseaseParam = disease[f"severity_{eventSeverity}"]
+            diseaseStartingCondition = diseaseParam["startingConditions"]
+            diseaseDecayCondition = diseaseParam["decay"]
+
+            # Process event for starting conditions
+            startShell = {
+                "event": eventName,
+                "eventSeverity": eventSeverity,
+                "eventType": "common",
+                "timeCategorical": 'limited',
+                "lastEmission": 0,
+                "timeInterval": 0,
+                "timeUnit": 'seconds',
+                "eventCount": 1,  # Initial use only
+                "parameters": []
+            }
+
+            for params in diseaseStartingCondition["parameters"]:
+                paramFillShell = {
+                    "name": params,
+                    "value": diseaseStartingCondition["parameters"][params],
+                    "action": "set",
+                    "type": "relative"
+                }
+                startShell["parameters"].append(paramFillShell)
+
+            print(f"Starting shell is: {startShell}")
+
+            # Process event for decay conditions
+            decayShell = {
+                "event": eventName,
+                "eventSeverity": eventSeverity,
+                "eventType": "common",
+                "timeCategorical": diseaseDecayCondition['rate']['type'],
+                "lastEmission": None,
+                "timeInterval": diseaseDecayCondition['rate']['timeValue'],
+                "timeUnit": diseaseDecayCondition['rate']['timeUnit'],
+                "eventCount": -10,  # Continuous function
+                "parameters": []
+            }
+
+            for params in diseaseDecayCondition["parameters"]:
+                paramData = diseaseDecayCondition["parameters"][params]
+                paramFillShell = {
+                    "name": params,
+                    "value": round(random.uniform(paramData['min'], paramData['max']), 2),  # Two-decimal granularity
+                    "action": "decay",
+                    "type": "relative"
+                }
+                print(f"Adding shell based on {params}")
+                decayShell["parameters"].append(paramFillShell)
+
+            print(f"Decay shell is: {decayShell}")
+
+            # Combine the processed events
+            processedEvent = [startShell, decayShell]
+            return processedEvent
+        else:
+            print(f"Event {eventName} not found in diseases.json")
+            return None

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline, interp1d
 import json
 
-from Pathologies.pathology import Pathology
+#from Pathologies.pathology import Pathology
 
 def test(data):
     path = Pathology()
@@ -35,6 +35,16 @@ from datetime import timedelta
 datetime1 = datetime.datetime(2023, 10, 1, 12, 0)
 datetime2 = datetime.datetime(2023, 10, 1, 12, 5)
 ## Timedelta in seconds
-timedelta = datetime2 - datetime1
-print(timedelta.total_seconds())
 
+time = 10
+unit = "seconds"
+## convert variable to integer-based timedelta
+print(int(timedelta(**{unit: time}).total_seconds()))
+#timedelta = datetime2 - datetime1
+#print(timedelta.total_seconds())
+
+import random
+from Events.Pathologies.pathology import Pathology
+pathology = Pathology()
+testing = pathology.CalcParamPercent(3, "cardio_parameters.elastance.max.9")
+print(f"Testing: {testing}")

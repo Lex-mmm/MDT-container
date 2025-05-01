@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room
+
 import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
+from redis import Redis
+from Comms.redisClient import RedisInit
 
-from Inference.inference_calc import Inference  # Import inference-generation class
-import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
@@ -19,10 +19,17 @@ class Patient:
         ## Initialize starting instance variables
         self.patient_id = patient_id
         self.param_file = param_file
-        self.running = False
+        self.running = False ## start right away
         self.data_epoch = []
+        ## redis client for communication
+        self.redisClient = RedisInit()
         self.model = DigitalTwinModel(patient_id, param_file, data_callback=None, 
                                      sleep=sleep)
+        
+        self.model.redisClient = self.redisClient ## enable use further down the line
+        
+
+    
 
     def startup(self):
         """Start the simulation."""
@@ -35,21 +42,34 @@ class Patient:
         self.running = False
         self.model.stop_simulation()
 
-    def processEvent(self, event, eventSeverity=None, eventType=None):
+    def processEvent(self, event, eventSeverity, eventType=None):
         """Process event for patient consequences."""
+        print(f" ----- PROCESSING EVENT ----- {event} ----- {eventSeverity} ----- {eventType}")
+        if not event or not eventSeverity:
+            return "Missing data: event or eventSeverity"
+        processedEvent = None ## start with empty, fill if needed
         if eventType == "disease" or eventType == "recovery":
-            self.model.add_disease(event, eventSeverity)
+            processedEvent = self.model.pathologies.processPathology(event, eventSeverity)
         elif eventType == "therapeutic":
-            self.model.add_therapeutic(event, eventSeverity)
-            
-        ## Event-layout:
+            processedEvent = self.model.therapeutic.processTherapeutic(event, eventSeverity)
+        
+        print(f"Processed event: {processedEvent}")
+        if processedEvent:
+            for event in processedEvent:
+                ## Allow multiple actions to flow from a single event (e.g. starting point + decay)
+                self.model.addProcessedEvent(event)
+
+        ## Single-event-layout:
         # event: {
         #     "event": "disease",
         #     "eventSeverity": 2,
         #     "eventType": "disease"
-        #     "continuous": True
+        #     "timeCategorical": "continuous" || "limited"
         #     "lastEmission": self.dt
-        #     "interval": 0.5
+        #     "timeInterval": 0.5
+        #     "timeUnit": "hours"
+        #     "eventCount": 5
+        #     "parameters": {name: x, value: y, action: 'set' vs 'relative', type: 'absolute' vs 'relative}
         #}
             
 
@@ -166,9 +186,34 @@ def get_latest_data():
         return jsonify({"error": f"Patient {patient_id} not found"}), 404
     return jsonify(twin_instances[patient_id].model.data_epoch)
 
-if __name__ == '__main__':
-    print("Starting server")
-    app.run(debug=True, host='127.0.0.1', port=5001)
+#if __name__ == '__main__':
+#    print("Starting server")
+#    app.run(debug=True, host='127.0.0.1', port=5001)
 
+@app.route('/')
+def hello():
+    return "Hello, World!"
     
 
+
+
+
+### START THE SERVER ###
+"""Start simulation for a specific patient."""
+## Allow for back-end submission of patient_id and param_file
+patient_id = "Erik"
+param_file = "healthyFlat.json"
+sleep = False
+
+if patient_id not in twin_instances:
+    # Create a new patient instance
+    twin_instances[patient_id] = Patient(patient_id= patient_id, param_file= param_file, sleep=sleep)
+
+
+patient = twin_instances[patient_id]
+if not patient.running:
+    # Start the simulation in a new thread
+    threading.Thread(target=patient.startup).start()
+#    return jsonify({"status": f"Simulation started for patient {patient_id}"})
+#else:
+ #   return jsonify({"status": f"Simulation already running for patient {patient_id}"})
