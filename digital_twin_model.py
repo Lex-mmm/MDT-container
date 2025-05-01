@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy.integrate import solve_ivp
+from collections import deque
 
 from Alarms.alarmModule import alarmModule
 import time, json
@@ -22,6 +23,9 @@ class DigitalTwinModel:
         self.running = False
         self.t = 0
         self.dt = time_step  # Time step
+        window_sec      = 200                         # how many seconds of history
+        self.window_n   = int(window_sec / self.dt)  # number of samples
+        self.P_buffer   = deque(maxlen=self.window_n)
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
         self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
@@ -53,6 +57,98 @@ class DigitalTwinModel:
 
         # Initialize Inference class
         self._compute_all_derived_params()
+
+
+        # ── A) helper to flatten master_parameters access ─────────────────────────
+    def get(self, key: str) -> float:
+        """Fetch .master_parameters[key]['value'] or raise KeyError."""
+        try:
+            return self.master_parameters[key]['value']
+        except KeyError:
+            raise KeyError(f"Parameter '{key}' not found in master_parameters")
+
+    def set(self, key: str, val: float):
+        """Write .master_parameters[key]['value']=val, creating entry if needed."""
+        if key in self.master_parameters:
+            self.master_parameters[key]['value'] = val
+        else:
+            self.master_parameters[key] = {'value': val}
+
+    def _compute_all_derived_params(self):
+        """Populate all the M_*, V_*, D_* and bloodflow fractions in master_parameters."""
+        mp = self.master_parameters
+        M_O2 = self.get('params.M_O2')
+
+        # 1) Base production rates
+        derived = {
+            'params.M_B_CO2': 0.2 * M_O2,
+            'params.M_CO2':   0.85 * M_O2,
+            'params.M_B_O2': -0.2 * M_O2,
+        }
+        derived['params.M_S_CO2'] = derived['params.M_CO2'] - derived['params.M_B_CO2']
+        derived['params.M_S_O2']  = -M_O2 - derived['params.M_B_O2']
+
+        # 2) Volumes
+        Vtot = {'CO2': self.get('params.V_CO2'),
+                'O2':  self.get('params.V_O2')}
+        Vbt  = {'CO2': self.get('params.V_Btis_CO2'),
+                'O2':  self.get('params.V_Btis_O2')}
+        fcap = self.get('params.f_V_cap')
+
+        derived['params.V_Stis_CO2'] = Vtot['CO2'] - Vbt['CO2']
+        derived['params.V_Stis_O2']  = Vtot['O2']  - Vbt['O2']
+        derived['params.V_Bcap_CO2'] = fcap * Vbt['CO2']
+        derived['params.V_Bcap_O2']  = fcap * Vbt['O2']
+        derived['params.V_Scap_CO2'] = fcap * derived['params.V_Stis_CO2']
+        derived['params.V_Scap_O2']  = fcap * derived['params.V_Stis_O2']
+
+        # 3) Diffusion constants
+        w    = self.get('params.w')
+        K_CO2 = self.get('params.K_CO2')
+        K_O2τ = self.get('params.K_O2_tau')
+        derived['params.D_T_CO2'] = 9/60 * w / K_CO2
+        derived['params.D_T_O2']  = 9/60 * w / K_O2τ
+
+        # 4) Blood‐flow fractions
+        q_p = self.get('bloodflows.q_p')
+        derived['bloodflows.q_Bv'] = 0.2 * q_p
+        derived['bloodflows.q_S']  = 0.8 * q_p
+
+        # 5) initial capillary concentrations (if not present)
+        def maybe_init(src_key, tgt_key, op):
+            if tgt_key not in mp:
+                c_src = self.get(src_key)
+                val = op(c_src)
+                derived[tgt_key] = val
+
+        # c_Scap_CO2 = c_Stis_CO2 - M_S_CO2/D_T_CO2
+        maybe_init('initial_conditions.c_Stis_CO2',
+                   'initial_conditions.c_Scap_CO2',
+                   lambda c: c - derived['params.M_S_CO2']/derived['params.D_T_CO2'])
+        # c_Scap_O2
+        maybe_init('initial_conditions.c_Stis_O2',
+                   'initial_conditions.c_Scap_O2',
+                   lambda c: c + derived['params.M_S_O2']/derived['params.D_T_O2'])
+        # c_Bcap_CO2
+        maybe_init('initial_conditions.c_Btis_CO2',
+                   'initial_conditions.c_Bcap_CO2',
+                   lambda c: c - derived['params.M_B_CO2']/derived['params.D_T_CO2'])
+        # c_Bcap_O2
+        maybe_init('initial_conditions.c_Btis_O2',
+                   'initial_conditions.c_Bcap_O2',
+                   lambda c: c + derived['params.M_B_O2']/derived['params.D_T_O2'])
+
+        # 6) gas_exchange_params ⇒ just mirror D_T_*
+        derived.update({
+            'gas_exchange_params.D_S_CO2': derived['params.D_T_CO2'],
+            'gas_exchange_params.D_B_CO2': derived['params.D_T_CO2'],
+            'gas_exchange_params.D_S_O2':  derived['params.D_T_O2'],
+            'gas_exchange_params.D_B_O2':  derived['params.D_T_O2'],
+        })
+
+        # Finally, write all derived back into master_parameters
+        for key, val in derived.items():
+            self.set(key, val)        
 
     def add_disease(self, disease, severity):
         package = {
@@ -147,57 +243,97 @@ class DigitalTwinModel:
     # pull directly from self.master_parameters (mp)
         if 'initial_conditions.c_Scap_CO2' not in self.master_parameters:
             c_Stis_CO2 = self.master_parameters['initial_conditions.c_Stis_CO2']['value']
-            M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
-            D_T_CO2    = self.master_parameters['params.D_T_CO2']['value']
-            self.master_parameters['initial_conditions.c_Scap_CO2'] = {
-                'value': c_Stis_CO2 - M_S_CO2 / D_T_CO2
-            }
+    
+    def _compute_all_derived_params(self):
+        """Populate all the M_*, V_*, D_* and bloodflow fractions in master_parameters."""
+        mp = self.master_parameters
+        M_O2 = self.get('params.M_O2')
 
-        if 'initial_conditions.c_Scap_O2' not in self.master_parameters:
-            c_Stis_O2 = self.master_parameters['initial_conditions.c_Stis_O2']['value']
-            M_S_O2    = self.master_parameters['params.M_S_O2']['value']
-            D_T_O2    = self.master_parameters['params.D_T_O2']['value']
-            self.master_parameters['initial_conditions.c_Scap_O2'] = {
-                'value': c_Stis_O2 + M_S_O2 / D_T_O2
-            }
+        # 1) Base production rates
+        derived = {
+            'params.M_B_CO2': 0.2 * M_O2,
+            'params.M_CO2':   0.85 * M_O2,
+            'params.M_B_O2': -0.2 * M_O2,
+        }
+        derived['params.M_S_CO2'] = derived['params.M_CO2'] - derived['params.M_B_CO2']
+        derived['params.M_S_O2']  = -M_O2 - derived['params.M_B_O2']
 
-        if 'initial_conditions.c_Bcap_CO2' not in self.master_parameters:
-            c_Btis_CO2 = self.master_parameters['initial_conditions.c_Btis_CO2']['value']
-            M_B_CO2    = self.master_parameters['params.M_B_CO2']['value']
-            D_T_CO2    = self.master_parameters['params.D_T_CO2']['value']
-            self.master_parameters['initial_conditions.c_Bcap_CO2'] = {
-                'value': c_Btis_CO2 - M_B_CO2 / D_T_CO2
-            }
+        # 2) Volumes
+        Vtot = {'CO2': self.get('params.V_CO2'),
+                'O2':  self.get('params.V_O2')}
+        Vbt  = {'CO2': self.get('params.V_Btis_CO2'),
+                'O2':  self.get('params.V_Btis_O2')}
+        fcap = self.get('params.f_V_cap')
 
-        if 'initial_conditions.c_Bcap_O2' not in self.master_parameters:
-            c_Btis_O2 = self.master_parameters['initial_conditions.c_Btis_O2']['value']
-            M_B_O2    = self.master_parameters['params.M_B_O2']['value']
-            D_T_O2    = self.master_parameters['params.D_T_O2']['value']
-            self.master_parameters['initial_conditions.c_Bcap_O2'] = {
-                'value': c_Btis_O2 + M_B_O2 / D_T_O2
-            }
+        derived['params.V_Stis_CO2'] = Vtot['CO2'] - Vbt['CO2']
+        derived['params.V_Stis_O2']  = Vtot['O2']  - Vbt['O2']
+        derived['params.V_Bcap_CO2'] = fcap * Vbt['CO2']
+        derived['params.V_Bcap_O2']  = fcap * Vbt['O2']
+        derived['params.V_Scap_CO2'] = fcap * derived['params.V_Stis_CO2']
+        derived['params.V_Scap_O2']  = fcap * derived['params.V_Stis_O2']
 
-            # --- 3.b populate gas_exchange_params entries so extended_state_space_equations can find them ---
-        self.master_parameters['gas_exchange_params.D_S_CO2'] = {'value': self.master_parameters['params.D_T_CO2']['value']}
-        self.master_parameters['gas_exchange_params.D_B_CO2'] = {'value': self.master_parameters['params.D_T_CO2']['value']}
-        self.master_parameters['gas_exchange_params.D_S_O2']  = {'value': self.master_parameters['params.D_T_O2']['value']}
-        self.master_parameters['gas_exchange_params.D_B_O2'] = {'value': self.master_parameters['params.D_T_O2']['value']}
+        # 3) Diffusion constants
+        w    = self.get('params.w')
+        K_CO2 = self.get('params.K_CO2')
+        K_O2τ = self.get('params.K_O2_tau')
+        derived['params.D_T_CO2'] = 9/60 * w / K_CO2
+        derived['params.D_T_O2']  = 9/60 * w / K_O2τ
+
+        # 4) Blood‐flow fractions
+        q_p = self.get('bloodflows.q_p')
+        derived['bloodflows.q_Bv'] = 0.2 * q_p
+        derived['bloodflows.q_S']  = 0.8 * q_p
+
+        # 5) initial capillary concentrations (if not present)
+        def maybe_init(src_key, tgt_key, op):
+            if tgt_key not in mp:
+                c_src = self.get(src_key)
+                val = op(c_src)
+                derived[tgt_key] = val
+
+        # c_Scap_CO2 = c_Stis_CO2 - M_S_CO2/D_T_CO2
+        maybe_init('initial_conditions.c_Stis_CO2',
+                   'initial_conditions.c_Scap_CO2',
+                   lambda c: c - derived['params.M_S_CO2']/derived['params.D_T_CO2'])
+        # c_Scap_O2
+        maybe_init('initial_conditions.c_Stis_O2',
+                   'initial_conditions.c_Scap_O2',
+                   lambda c: c + derived['params.M_S_O2']/derived['params.D_T_O2'])
+        # c_Bcap_CO2
+        maybe_init('initial_conditions.c_Btis_CO2',
+                   'initial_conditions.c_Bcap_CO2',
+                   lambda c: c - derived['params.M_B_CO2']/derived['params.D_T_CO2'])
+        # c_Bcap_O2
+        maybe_init('initial_conditions.c_Btis_O2',
+                   'initial_conditions.c_Bcap_O2',
+                   lambda c: c + derived['params.M_B_O2']/derived['params.D_T_O2'])
+
+        # 6) gas_exchange_params ⇒ just mirror D_T_*
+        derived.update({
+            'gas_exchange_params.D_S_CO2': derived['params.D_T_CO2'],
+            'gas_exchange_params.D_B_CO2': derived['params.D_T_CO2'],
+            'gas_exchange_params.D_S_O2':  derived['params.D_T_O2'],
+            'gas_exchange_params.D_B_O2':  derived['params.D_T_O2'],
+        })
+
+        # Finally, write all derived back into master_parameters
+        for key, val in derived.items():
+            self.set(key, val)
 
     def compute_cardiac_parameters(self):
-        # Initialize elastance, resistance, uvolume from parameters
+        """Extract elastance‐min/max, resistance, uvolume arrays from master_parameters."""
+        # we assume keys are sorted: elastance_min_0…N, elastance_max_0…N, resistance_0…N, uvolume_0…N
+        elast_min = sorted(k for k in self.master_parameters if 'cardio' in k and 'elastance' in k and 'min' in k)
+        elast_max = sorted(k for k in self.master_parameters if 'cardio' in k and 'elastance' in k and 'max' in k)
+        resist    = sorted(k for k in self.master_parameters if 'cardio' in k and 'resistance' in k)
+        uv        = sorted(k for k in self.master_parameters if 'cardio' in k and 'uvolume' in k)
 
-        cardio_elastance_min = [key for key in self.master_parameters if 'cardio' in key and 'min' in key and 'elastance' in key]
-        cardio_elastance_max = [key for key in self.master_parameters if 'cardio' in key and 'max' in key and 'elastance' in key]
-
-        cardio_resistance = [key for key in self.master_parameters if 'cardio' in key and 'resistance' in key]
-        cardio_uvolume = [key for key in self.master_parameters if 'cardio' in key and 'uvolume' in key]
-
-        self.elastance = np.array([ [self.master_parameters[key]['value'] for key in cardio_elastance_min], 
-                             [self.master_parameters[key]['value'] for key in cardio_elastance_max]])
-        
-        self.resistance = np.array([self.master_parameters[key]['value'] for key in cardio_resistance])
-        
-        self.uvolume = np.array([self.master_parameters[key]['value'] for key in cardio_uvolume])
+        self.elastance = np.array([
+            [self.get(k) for k in elast_min],
+            [self.get(k) for k in elast_max],
+        ])
+        self.resistance = np.array([self.get(k) for k in resist])
+        self.uvolume    = np.array([self.get(k) for k in uv])
 
 
     def initialize_model_parameters(self):
@@ -292,34 +428,42 @@ class DigitalTwinModel:
         self.Tvs = 0.16 + 0.2 * self.HP
 
     def calculate_elastances(self, t):
-        """Calculate heart elastances."""
-        HP = self.HP
-        Tas = self.Tas
-        Tav = self.Tav
-        Tvs = self.Tvs
-        T = self.dt
-        ncc = (t % HP) / T
+        """
+        Compute time-varying elastances for atria (era), ventricles (elv),
+        and “active” elastance for arteries (ela) from a single normalized phase φ.
+        """
+        # 1) normalized cardiac phase φ ∈ [0,1)
+        φ = (t % self.HP) / self.HP
 
-        if ncc <= round(Tas / T):
-            aaf = np.sin(np.pi * ncc / (Tas / T))
+        # 2) precompute fractional durations
+        a_frac = self.Tas / self.HP              # active (systolic) phase end
+        c_start = (self.Tas + self.Tav) / self.HP # diastolic start
+        v_frac = self.Tvs / self.HP              # duration of ventricle contraction
+
+        # 3) atrial/arterial “active” factor aaf
+        if φ <= a_frac and a_frac > 0:
+            aaf = np.sin(np.pi * (φ / a_frac))
         else:
-            aaf = 0
+            aaf = 0.0
 
-
-        ela = self.elastance[0, 8] + (self.elastance[1, 8] - self.elastance[0, 8]) * aaf
-        era = self.elastance[0, 4] + (self.elastance[1, 4] - self.elastance[0, 4]) * aaf
-
-        if ncc <= round((Tas + Tav) / T):
-            vaf = 0
-        elif ncc <= round((Tas + Tav + Tvs) / T):
-            vaf = np.sin(np.pi * (ncc - (Tas + Tav) / T) / (Tvs / T))
+        # 4) ventricular factor vaf
+        #    φ ∈ (c_start, c_start+v_frac]
+        if c_start < φ <= c_start + v_frac and v_frac > 0:
+            vaf = np.sin(np.pi * ((φ - c_start) / v_frac))
         else:
-            vaf = 0
-        #print(f"Current state of elastance: {self.elastance[1,9]}")
-        elv = self.elastance[0, 9] + (self.elastance[1, 9] - self.elastance[0, 9]) * vaf
-        erv = self.elastance[0, 5] + (self.elastance[1, 5] - self.elastance[0, 5]) * vaf
+            vaf = 0.0
+
+        # 5) pull the four compartments by index
+        #    0: min-elastance, 1: max-elastance
+        #    [8] arterial, [4] atrial, [9] ventricular, [5] ventricular
+        emin, emax = self.elastance
+        ela = emin[8] + (emax[8] - emin[8]) * aaf
+        era = emin[4] + (emax[4] - emin[4]) * aaf
+        elv = emin[9] + (emax[9] - emin[9]) * vaf
+        erv = emin[5] + (emax[5] - emin[5]) * vaf
 
         return ela, elv, era, erv
+
 
     def get_inputs(self, t):
         """Get inputs for the cardiovascular system."""
@@ -372,7 +516,6 @@ class DigitalTwinModel:
         p_a_O2 = y[18]
         CaO2 = (self.master_parameters['params.K_O2']['value'] * np.power((1 - np.exp(-self.master_parameters['params.k_O2']['value'] * min(p_a_O2, 700))), 2)) * 100
         Sa_O2 = np.round(((CaO2 - p_a_O2 * 0.003 / 100) / (self.master_parameters['misc_constants.Hgb']['value'] * 1.34)) * 100)
-        ##print(CaO2, p_a_O2, Sa_O2)
         return P, F, HR, Sa_O2
 
     def ventilator_pressure(self, t):
@@ -403,208 +546,238 @@ class DigitalTwinModel:
 
         return np.array([0, dPmus_dt])
 
-
     def extended_state_space_equations(self, t, x):
-        """Define the combined system of differential equations."""
-        # Use self.HR_store, self.buffer_index, self.window_size, self.HR
-        # Split x into cardiovascular and lung model components
-        V = x[:10]  # Volumes for cardiovascular model
-        mechanical_states = x[10:15]  # Mechanical states
-        FD_O2, FD_CO2, p_a_CO2, p_a_O2 = x[15], x[16], x[17], x[18]
+        """
+        Combined ODE for cardiovascular + respiratory system,
+        with reflex gains computed from a sliding MAP buffer.
+        """
+        # ── 1) Unpack state vector ────────────────────────────────────────────────
+        V = x[0:10]                          # blood volumes
+        mech = x[10:15]                      # lung mechanical states
+        FD_O2, FD_CO2 = x[15], x[16]
+        p_a_CO2, p_a_O2 = x[17], x[18]
         c_Stis_CO2, c_Scap_CO2, c_Stis_O2, c_Scap_O2 = x[19:23]
-        Delta_RR_c = x[23]
-        Delta_Pmus_c = x[24]
+        Δ_RR_c, Δ_Pmus_c = x[23], x[24]
         Pmus = x[25]
-        Delta_HR_c = x[26]
-        Delta_R_c = x[27]
-        Delta_UV_c = x[28]
+        Δ_HR_c, Δ_R_c, Δ_UV_c = x[26], x[27], x[28]
 
-        # Inputs for cardiovascular model
-        ela, elv, era, erv = self.get_inputs(t)
+        # ── 2) Pull “setpoint” parameters ─────────────────────────────────────────
+        HR_n    = self.master_parameters['cardio_control_params.HR_n']['value']
+        R_n     = self.master_parameters['cardio_control_params.R_n']['value']
+        UV_n    = self.master_parameters['cardio_control_params.UV_n']['value']
+        RR0     = self.master_parameters['respiratory_control_params.RR_0']['value']
+        FI_O2   = self.master_parameters['gas_exchange_params.FI_O2']['value']
+        FI_CO2  = self.master_parameters['gas_exchange_params.FI_CO2']['value']
+        CO_nom  = self.master_parameters['bloodflows.CO']['value']
+        shunt   = self.master_parameters['bloodflows.sh']['value']
+        MV_mode = self.master_parameters['misc_constants.MV']['value']
 
-        HR = self.master_parameters['cardio_control_params.HR_n']['value'] - Delta_HR_c
-        R_c = self.master_parameters['cardio_control_params.R_n']['value'] - Delta_R_c
-        UV_c = self.master_parameters['cardio_control_params.UV_n']['value'] + Delta_UV_c
+        # Apply baroreflex deltas
+        HR = HR_n   - Δ_HR_c
+        R_c = R_n   - Δ_R_c
+        UV_c = UV_n + Δ_UV_c
+        RR  = RR0  + Δ_RR_c
 
-        # Update heart period parameters
-        self.HR = HR
+        # Update heart/respiratory rates
+        self.HR, self.RR = HR, RR
         self.update_heart_period(HR)
 
-        if self.master_parameters['misc_constants.MV']['value'] == 0:
+        # ── 3) Ventilator vs. Spontaneous Breathing ───────────────────────────────
+        if MV_mode == 0:
+            # spontaneous
             P_ao = 0
-            self.RR = self.master_parameters['respiratory_control_params.RR_0']['value'] + Delta_RR_c
-            Pmus_min = self.master_parameters['respiratory_control_params.Pmus_0']['value'] + Delta_Pmus_c
-            driver = self.input_function(t, self.RR, Pmus_min)
-            Pmus_dt = driver[1]
-            FI_O2 = self.master_parameters['gas_exchange_params.FI_O2']['value']
-            FI_CO2 = self.master_parameters['gas_exchange_params.FI_CO2']['value']
+            Pmus_min = (
+                self.master_parameters['respiratory_control_params.Pmus_0']['value']
+                + Δ_Pmus_c
+            )
+            _, Pmus_dt = self.input_function(t, RR, Pmus_min)
         else:
+            # ventilator
             P_ao = self.ventilator_pressure(t)
-            driver = np.array([P_ao, 0])
-            RR = 12
-            FI_O2 = self.master_parameters['gas_exchange_params.FI_O2']['value']
-            FI_CO2 = self.master_parameters['gas_exchange_params.FI_CO2']['value']
             Pmus_dt = 0
 
-        #print(RR, Pmus_min, FI_O2, FI_CO2)
-
-        # Calculate the pressures for cardiovascular model
+        # ── 4) Cardiovascular Pressures P_i ──────────────────────────────────────
+        ela, elv, era, erv = self.get_inputs(t)
         P = np.zeros(10)
-        P[0] = self.elastance[0, 0] * (V[0] - self.uvolume[0]) + mechanical_states[4]
-        P[1] = self.elastance[0, 1] * (V[1] - self.uvolume[1])
-        P[2] = self.elastance[0, 2] * (V[2] - self.uvolume[2] * UV_c)
-        P[3] = self.elastance[0, 3] * (V[3] - self.uvolume[3] * UV_c) + mechanical_states[4]
-        P[4] = era * (V[4] - self.uvolume[4]) + mechanical_states[4]
-        P[5] = erv * (V[5] - self.uvolume[5]) + mechanical_states[4]
-        P[6] = self.elastance[0, 6] * (V[6] - self.uvolume[6]) + mechanical_states[4]
-        P[7] = self.elastance[0, 7] * (V[7] - self.uvolume[7]) + mechanical_states[4]
-        P[8] = ela * (V[8] - self.uvolume[8]) + mechanical_states[4]
-        P[9] = elv * (V[9] - self.uvolume[9]) + mechanical_states[4]
+        P[0] = self.elastance[0,0] * (V[0] - self.uvolume[0]) + mech[4]
+        P[1] = self.elastance[0,1] * (V[1] - self.uvolume[1])
+        P[2] = self.elastance[0,2] * (V[2] - self.uvolume[2] * UV_c)
+        P[3] = self.elastance[0,3] * (V[3] - self.uvolume[3] * UV_c) + mech[4]
+        P[4] = era * (V[4] - self.uvolume[4]) + mech[4]
+        P[5] = erv * (V[5] - self.uvolume[5]) + mech[4]
+        P[6] = self.elastance[0,6] * (V[6] - self.uvolume[6]) + mech[4]
+        P[7] = self.elastance[0,7] * (V[7] - self.uvolume[7]) + mech[4]
+        P[8] = ela * (V[8] - self.uvolume[8]) + mech[4]
+        P[9] = elv * (V[9] - self.uvolume[9]) + mech[4]
 
-        # Calculate the flows for cardiovascular model
+        # ── 5) Flows F_i with simple reversal handling ────────────────────────────
         F = np.zeros(10)
-        F[0] = (P[0] - P[1]) / (self.resistance[0] * R_c)
-        F[1] = (P[1] - P[2]) / (self.resistance[1] * R_c)
-        F[2] = (P[2] - P[3]) / (self.resistance[2] * R_c)
-        F[3] = (P[3] - P[4]) / self.resistance[3] if P[3] - P[4] > 0 else (P[3] - P[4]) / (10 * self.resistance[3])
-        F[4] = (P[4] - P[5]) / self.resistance[4] if P[4] - P[5] > 0 else 0
-        F[5] = (P[5] - P[6]) / self.resistance[5] if P[5] - P[6] > 0 else 0
-        F[6] = (P[6] - P[7]) / self.resistance[6]
-        F[7] = (P[7] - P[8]) / self.resistance[7] if P[7] - P[8] > 0 else (P[7] - P[8]) / (10 * self.resistance[7])
-        F[8] = (P[8] - P[9]) / self.resistance[8] if P[8] - P[9] > 0 else 0
-        F[9] = (P[9] - P[0]) / self.resistance[9] if P[9] - P[0] > 0 else 0
+        for i in range(9):
+            R_eff = self.resistance[i] * (R_c if i < 3 else 1)
+            ΔP = P[i] - P[i+1]
+            if ΔP > 0:
+                F[i] = ΔP / R_eff
+            else:
+                # for valves (i==3 or 7) allow tiny reverse flow
+                F[i] = ΔP / (10 * R_eff) if i in (3,7) else 0
+        ΔP = P[9] - P[0]
+        F[9] = ΔP / self.resistance[9] if ΔP > 0 else 0
 
-        # Store values in the circular buffer
-        #self.P_store[:, self.buffer_index] = P
-        #self.F_store[:, self.buffer_index] = F
-        #self.HR_store[self.buffer_index] = HR
+        # ── 6) Update MAP buffer ──────────────────────────────────────────────────
+        self.P_store[0, self.buffer_index] = P[0]
+        self.P_buffer.append(P[0])
+        self.buffer_index = (self.buffer_index + 1) % self.window_size
 
-        # Update buffer index
-        #self.buffer_index = (self.buffer_index + 1) % self.window_size
+        # ── 7) Chemo‐ & Baroreflex updates via one call ──────────────────────────
+        dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = self.apply_reflexes(
+            p_a_CO2, Δ_RR_c, Δ_Pmus_c, Δ_HR_c, Δ_R_c, Δ_UV_c
+        )
 
-        # Calculate the derivatives of volumes for cardiovascular model
+        # ── 8) Volume derivatives dV/dt ──────────────────────────────────────────
         dVdt = np.zeros(10)
         dVdt[0] = F[9] - F[0]
-        dVdt[1] = F[0] - F[1]
-        dVdt[2] = F[1] - F[2]
-        dVdt[3] = F[2] - F[3]
-        dVdt[4] = F[3] - F[4]
-        dVdt[5] = F[4] - F[5]
-        dVdt[6] = F[5] - F[6]
-        dVdt[7] = F[6] - F[7]
-        dVdt[8] = F[7] - F[8]
-        dVdt[9] = F[8] - F[9]
+        for i in range(1,10):
+            dVdt[i] = F[i-1] - F[i]
 
-        # Lung cardio to respi model by exchanging the Cardiac output with the lung model
-        # Calculate CO as area under the curve of F[0]
-        #cycle_length = 60 / HR
-        #cycle_points = int(cycle_length / self.dt)
-        idx = self.buffer_index  # Current buffer index
-        #if idx >= cycle_points:
-        #    F0_cycle = self.F_store[0, idx - cycle_points:idx]
-        #    CO = np.trapz(F0_cycle, dx=self.dt)   # in ml/sec
-        #else:
-        #    CO = self.bloodflows['CO']  # Initial values
+        # ── 9) Lung mechanics ─────────────────────────────────────────────────────
+        R_lt = self.master_parameters['respi_constants.R_lt']['value']
+        C_cw = self.C_cw
+        Ppl_dt = mech[0]/(R_lt*C_cw) - mech[1]/(C_cw*R_lt) + Pmus_dt
+        dxdt_mech = (
+            self.A_mechanical.dot(mech)
+            + self.B_mechanical.dot([P_ao, Ppl_dt, Pmus_dt])
+        )
 
-        CO = self.master_parameters['bloodflows.CO']['value']
-        q_p = CO
-
-        q_S = 0.8 * CO
-
-        # Compute mechanical derivatives
-        Pmus_dt = driver[1]
-        Ppl_dt = (mechanical_states[0] / (self.master_parameters['respi_constants.R_lt']['value'] * self.C_cw)) - (mechanical_states[1] / (self.C_cw * self.master_parameters['respi_constants.R_lt']['value'])) + Pmus_dt
-        dxdt_mechanical = np.dot(self.A_mechanical, mechanical_states) + np.dot(self.B_mechanical, [P_ao, Ppl_dt, Pmus_dt])
-
-        # Compute the ventilation rates based on pressures
-        Vdot_l = (P_ao - mechanical_states[0]) / (1.021 * 1.5) ## R_ml constant
-        Vdot_A = (mechanical_states[2] - mechanical_states[3]) / self.master_parameters['respi_constants.R_bA']['value']
+        # ── 10) Gas exchange & alveolar ODEs ──────────────────────────────────────
+        R_ml = 1.021 * 1.5
+        Vdot_l = (P_ao - mech[0]) / R_ml
+        R_bA   = self.master_parameters['respi_constants.R_bA']['value']
+        Vdot_A = (mech[2] - mech[3]) / R_bA
 
         p_D_CO2 = FD_CO2 * 713
-        p_D_O2 = FD_O2 * 713
-        FA_CO2 = p_a_CO2 / 713
-        FA_O2 = p_a_O2 / 713
+        p_D_O2  = FD_O2  * 713
+        FA_CO2  = p_a_CO2 / 713
+        FA_O2   = p_a_O2  / 713
 
-        c_a_CO2 = self.master_parameters['params.K_CO2']['value'] * p_a_CO2 + self.master_parameters['params.k_CO2']['value']  # Arterial CO2 concentration
+        K_CO2, k_CO2 = (
+            self.master_parameters['params.K_CO2']['value'],
+            self.master_parameters['params.k_CO2']['value']
+        )
+        c_a_CO2 = K_CO2 * p_a_CO2 + k_CO2
 
-        # Safeguard to prevent overflow
         if p_a_O2 > 700:
             p_a_O2 = 700
+        K_O2, k_O2 = (
+            self.master_parameters['params.K_O2']['value'],
+            self.master_parameters['params.k_O2']['value']
+        )
+        c_a_O2 = K_O2 * (1 - np.exp(-k_O2 * p_a_O2))**2
 
-        c_a_O2 = self.master_parameters['params.K_O2']['value'] * np.power((1 - np.exp(-self.master_parameters['params.k_O2']['value'] * p_a_O2)), 2)
+        c_v_CO2, c_v_O2 = c_Scap_CO2, c_Scap_O2
 
-        c_v_CO2 = c_Scap_CO2
-        c_v_O2 = c_Scap_O2
+        V_D = self.master_parameters['gas_exchange_params.V_D']['value']
+        V_A = self.master_parameters['gas_exchange_params.V_A']['value']
 
-        # Determine inspiration or expiration
-        if (self.master_parameters['misc_constants.MV']['value'] == 1 and P_ao > 6 * 0.735) or (self.master_parameters['misc_constants.MV']['value'] == 0 and mechanical_states[0] < 0):
-            # Inspiration
-            dFD_O2_dt = Vdot_l * 1000 * (FI_O2 - FD_O2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
-            dFD_CO2_dt = Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
-
-            dp_a_CO2 = (863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_CO2 - c_a_CO2) + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
-            dp_a_O2 = (863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) + Vdot_A * 1000 * (p_D_O2 - p_a_O2)) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
+        if (MV_mode == 1 and P_ao > 6 * 0.735) or (MV_mode == 0 and mech[0] < 0):
+            dFD_O2_dt = Vdot_l * 1000 * (FI_O2  - FD_O2 ) / (V_D * 1000)
+            dFD_CO2_dt= Vdot_l * 1000 * (FI_CO2 - FD_CO2) / (V_D * 1000)
+            dp_a_CO2  = (
+                863 * CO_nom * (1-shunt) * (c_v_CO2 - c_a_CO2)
+                + Vdot_A * 1000 * (p_D_CO2 - p_a_CO2)
+            ) / (V_A * 1000)
+            dp_a_O2   = (
+                863 * CO_nom * (1-shunt) * (c_v_O2 - c_a_O2)
+                + Vdot_A * 1000 * (p_D_O2 - p_a_O2)
+            ) / (V_A * 1000)
         else:
-            # Expiration
-            dFD_O2_dt = Vdot_A * 1000 * (FD_O2 - FA_O2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
-            dFD_CO2_dt = Vdot_A * 1000 * (FD_CO2 - FA_CO2) / (self.master_parameters['gas_exchange_params.V_D']['value'] * 1000)
+            dFD_O2_dt = Vdot_A * 1000 * (FD_O2  - FA_O2 ) / (V_D * 1000)
+            dFD_CO2_dt= Vdot_A * 1000 * (FD_CO2 - FA_CO2) / (V_D * 1000)
+            dp_a_CO2  = 863 * CO_nom * (1-shunt) * (c_v_CO2 - c_a_CO2) / (V_A * 1000)
+            dp_a_O2   = 863 * CO_nom * (1-shunt) * (c_v_O2 - c_a_O2) / (V_A * 1000)
 
-            dp_a_CO2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_CO2 - c_a_CO2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
-            dp_a_O2 = 863 * q_p * (1 - self.master_parameters['bloodflows.sh']['value']) * (c_v_O2 - c_a_O2) / (self.master_parameters['gas_exchange_params.V_A']['value'] * 1000)
-
-        # The systemic tissue compartment
-        M_S_CO2    = self.master_parameters['params.M_S_CO2']['value']
-        D_S_CO2    = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
+        # ── 11) Systemic tissue ODEs ───────────────────────────────────────────────
+        M_S_CO2 = self.master_parameters['params.M_S_CO2']['value']
+        D_S_CO2 = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
         V_Stis_CO2 = self.master_parameters['params.V_Stis_CO2']['value']
         V_Scap_CO2 = self.master_parameters['params.V_Scap_CO2']['value']
 
-        dc_Stis_CO2 = (M_S_CO2 - D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2))  / V_Stis_CO2
-        dc_Scap_CO2 = (q_S * (c_a_CO2 - c_Scap_CO2) + D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / V_Scap_CO2
+        dc_Stis_CO2 = (M_S_CO2 - D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / V_Stis_CO2
+        dc_Scap_CO2 = (
+            CO_nom * 0.8 * (c_a_CO2 - c_Scap_CO2)
+            + D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)
+        ) / V_Scap_CO2
 
-
-        M_S_O2     = self.master_parameters['params.M_S_O2']['value']
-        D_S_O2     = self.master_parameters['gas_exchange_params.D_S_O2']['value']
-        V_Stis_O2  = self.master_parameters['params.V_Stis_O2']['value']
-        V_Scap_O2  = self.master_parameters['params.V_Scap_O2']['value']
+        M_S_O2 = self.master_parameters['params.M_S_O2']['value']
+        D_S_O2 = self.master_parameters['gas_exchange_params.D_S_O2']['value']
+        V_Stis_O2 = self.master_parameters['params.V_Stis_O2']['value']
+        V_Scap_O2 = self.master_parameters['params.V_Scap_O2']['value']
 
         dc_Stis_O2 = (M_S_O2 - D_S_O2 * (c_Stis_O2 - c_Scap_O2)) / V_Stis_O2
-        dc_Scap_O2 = (q_S * (c_a_O2 - c_Scap_O2) + D_S_O2 * (c_Stis_O2 - c_Scap_O2)) / V_Scap_O2
+        dc_Scap_O2 = (
+            CO_nom * 0.8 * (c_a_O2 - c_Scap_O2)
+            + D_S_O2 * (c_Stis_O2 - c_Scap_O2)
+        ) / V_Scap_O2
 
-        # Central control
-        u_c = p_a_CO2 - self.master_parameters['respiratory_control_params.PaCO2_n']['value']
-        hr_c = P[0] - self.master_parameters['cardio_control_params.ABP_n']['value']
-        dDelta_Pmus_c = (-Delta_Pmus_c + self.master_parameters['respiratory_control_params.Gc_A']['value'] * u_c) / self.master_parameters['respiratory_control_params.tau_c_A']['value']
-        dDelta_RR_c = (-Delta_RR_c + self.master_parameters['respiratory_control_params.Gc_f']['value'] * u_c) / self.master_parameters['respiratory_control_params.tau_p_f']['value']
-
-        dDelta_HR_c = (-Delta_HR_c + self.master_parameters['cardio_control_params.Gc_hr']['value'] * hr_c) / self.master_parameters['cardio_control_params.tau_hr']['value']  # Heart rate
-        dDelta_R_c = (-Delta_R_c + self.master_parameters['cardio_control_params.Gc_r']['value'] * hr_c) / self.master_parameters['cardio_control_params.tau_r']['value']  # Resistance
-        dDelta_UV_c = (-Delta_UV_c + self.master_parameters['cardio_control_params.Gc_uv']['value'] * hr_c) / self.master_parameters['cardio_control_params.tau_uv']['value']  # Unstressed volume
-
-        # Combine all derivatives into a single array
+        # ── 12) Pack dx/dt ─────────────────────────────────────────────────────────
         dxdt = np.concatenate([
             dVdt,
-            dxdt_mechanical,
+            dxdt_mech,
             [
-                dFD_O2_dt,
-                dFD_CO2_dt,
-                dp_a_CO2,
-                dp_a_O2,  
-                dc_Stis_CO2,
-                dc_Scap_CO2,
-                dc_Stis_O2,
-                dc_Scap_O2,
-                dDelta_RR_c,
-                dDelta_Pmus_c,
+                dFD_O2_dt, dFD_CO2_dt,
+                dp_a_CO2, dp_a_O2,
+                dc_Stis_CO2, dc_Scap_CO2,
+                dc_Stis_O2, dc_Scap_O2,
+                dΔ_RR_c, dΔ_Pmus_c,
                 Pmus_dt,
-                dDelta_HR_c,
-                dDelta_R_c,
-                dDelta_UV_c
+                dΔ_HR_c, dΔ_R_c, dΔ_UV_c
             ]
         ])
+
         return dxdt
-    
 
 
+
+    def apply_reflexes(self, p_a_CO2, Delta_RR_c, Delta_Pmus_c, 
+                             Delta_HR_c, Delta_R_c, Delta_UV_c):
+        """uses the last self.window_n samples of arterial pressure (P[0])
+           to compute mean MAP for baroreflex, and the current p_a_CO2
+           for chemoreflex."""
+        mp = self.master_parameters
+
+        # 1) baroreflex on HR, R & UV
+        if len(self.P_buffer)>0:
+            recent_MAP = float(np.mean(self.P_buffer))
+        else:
+            recent_MAP = mp['cardio_control_params.ABP_n']['value']
+
+        #print(recent_MAP)
+        ABP_n   = mp['cardio_control_params.ABP_n']['value']
+        Gc_hr   = mp['cardio_control_params.Gc_hr']['value']
+        tau_hr  = mp['cardio_control_params.tau_hr']['value']
+        Gc_r    = mp['cardio_control_params.Gc_r']['value']
+        tau_r   = mp['cardio_control_params.tau_r']['value']
+        Gc_uv   = mp['cardio_control_params.Gc_uv']['value']
+        tau_uv  = mp['cardio_control_params.tau_uv']['value']
+
+        hr_err     = recent_MAP - ABP_n
+        dDelta_HR_c = (-Delta_HR_c + Gc_hr * hr_err) / tau_hr
+        dDelta_R_c  = (-Delta_R_c  + Gc_r  * hr_err) / tau_r
+        dDelta_UV_c = (-Delta_UV_c + Gc_uv * hr_err) / tau_uv
+
+        # 2) chemoreflex on RR & Pmus
+        PaCO2_n = mp['respiratory_control_params.PaCO2_n']['value']
+        Gc_A    = mp['respiratory_control_params.Gc_A']['value']
+        tau_c_A = mp['respiratory_control_params.tau_c_A']['value']
+        Gc_f    = mp['respiratory_control_params.Gc_f']['value']
+        tau_p_f = mp['respiratory_control_params.tau_p_f']['value']
+
+        u_c            = p_a_CO2 - PaCO2_n
+        dDelta_Pmus_c = (-Delta_Pmus_c + Gc_A * u_c) / tau_c_A
+        dDelta_RR_c   = (-Delta_RR_c   + Gc_f * u_c) / tau_p_f
+
+        #print(recent_MAP, self.HR)
+
+        return dDelta_RR_c, dDelta_Pmus_c, dDelta_HR_c, dDelta_R_c, dDelta_UV_c
 
 
 
@@ -633,13 +806,36 @@ class DigitalTwinModel:
                     self.events.remove(processedEvent)  # Remove the event after processing, else keep it
 
 
-            sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
-            self.current_state = sol.y[:, -1]  # Update state to the latest solution
+            # 1) integrate one step
+            sol = solve_ivp(self.extended_state_space_equations,
+                            [self.t, self.t + self.dt],
+                            self.current_state,
+                            t_eval=[self.t + self.dt],
+                            method='RK45')
 
+            # 2) update your state
+            self.current_state = sol.y[:, -1]
+
+            # 3) extract the reflex‐related state variables
+            p_a_CO2      = self.current_state[17]
+            Delta_RR_c   = self.current_state[23]
+            Delta_Pmus_c = self.current_state[24]
+            Delta_HR_c   = self.current_state[26]
+            Delta_R_c    = self.current_state[27]
+            Delta_UV_c   = self.current_state[28]
+
+            # 4) now invoke your reflex‐logic
+            self.apply_reflexes(p_a_CO2,
+                                Delta_RR_c,
+                                Delta_Pmus_c,
+                                Delta_HR_c,
+                                Delta_R_c,
+                                Delta_UV_c)
             # Compute variables at the latest time point
             P, F, HR, Sa_O2 = self.compute_variables(sol.t[-1], self.current_state)
-            self.current_heart_rate = self.HR  # Update monitored value
-            self.current_SaO2 = Sa_O2  # Update monitored value
+            #self.current_heart_rate = self.HR  # Update monitored value
+            #self.current_SaO2 = Sa_O2  # Update monitored value
+            #self.current_MAP = np.mean(self.P_store[0])  # Update monitored value
 
             # Update buffer index
             self.P_store[:, self.buffer_index] = P[0]
@@ -647,7 +843,10 @@ class DigitalTwinModel:
             self.HR_store[self.buffer_index] = HR
             self.buffer_index = (self.buffer_index + 1) % 2000
 
-
+            self.current_heart_rate = self.HR  # Update monitored value
+            self.current_SaO2 = Sa_O2  # Update monitored value
+            self.current_MAP = float(np.mean(self.P_buffer))  # Update monitored value
+            self.current_RR = self.RR  # Update monitored value
 
             #print(self.buffer_index)
             #print(self.P_store[0])
@@ -678,7 +877,7 @@ class DigitalTwinModel:
                     } }
                 
                 ## Send data to the client
-                self.redisClient.add_vital_sign(self.patient_id, data)
+                #self.redisClient.add_vital_sign(self.patient_id, data)
 
                 ## Save latest data as epoch: Keep n data points for callback purposes
                 if len(self.data_epoch) == 0:

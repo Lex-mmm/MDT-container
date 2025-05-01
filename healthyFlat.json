@@ -459,9 +459,9 @@
         "max": -2
     },
     "respiratory_control_params.Gc_f": {
-        "value": 0.9,
-        "min": 0.9,
-        "max": 0.9
+        "value": 3,
+        "min": 3,
+        "max": 3
     },
     "respiratory_control_params.tau_p_A": {
         "value": 83,
@@ -549,33 +549,33 @@
         "max": 2
     },
     "cardio_control_params.Gc_hr": {
-        "value": 0.9,
-        "min": 0.1,
+        "value": 2,
+        "min": 2,
         "max": 2
     },
     "cardio_control_params.Gc_r": {
-        "value": 0.05,
-        "min": 0.01,
-        "max": 0.2
+        "value": 0.005,
+        "min": 0.001,
+        "max": 0.02
     },
     "cardio_control_params.Gc_uv": {
-        "value": 0.05,
-        "min": 0.01,
-        "max": 0.2
+        "value": 0.005,
+        "min": 0.001,
+        "max": 0.02
     },
     "cardio_control_params.tau_hr": {
         "value": 105,
-        "min": 50,
-        "max": 200
+        "min": 105,
+        "max": 105
     },
     "cardio_control_params.tau_r": {
-        "value": 205,
-        "min": 100,
-        "max": 400
+        "value": 500,
+        "min": 500,
+        "max": 500
     },
     "cardio_control_params.tau_uv": {
-        "value": 205,
-        "min": 100,
+        "value": 400,
+        "min": 400,
         "max": 400
     },
     "misc_constants.Hgb": {

@@ -3,7 +3,8 @@
         "severity_1": {
             "startingConditions": {
                 "parameters": {
-                    "cardio_parameters.elastance.max.9": -25
+                    "cardio_parameters.elastance.max.9": -25,
+                    "cardio_control_params.HR_n": 25
                 }
 
             },
@@ -37,7 +38,8 @@
         "severity_2": {
             "startingConditions": {
                 "parameters": {
-                    "cardio_parameters.elastance.max.9": -50
+                    "cardio_parameters.elastance.max.9": -50,
+                    "cardio_control_params.HR_n": 25
                 }
 
             },
@@ -71,7 +73,8 @@
         "severity_3": {
             "startingConditions": {
                 "parameters": {
-                    "cardio_parameters.elastance.max.9": -60
+                    "cardio_parameters.elastance.max.9": -60,
+                    "cardio_control_params.HR_n": 50
                 }
 
             },
@@ -105,7 +108,8 @@
         "severity_4": {
             "startingConditions": {
                 "parameters": {
-                    "cardio_parameters.elastance.max.9": -80
+                    "cardio_parameters.elastance.max.9": -80,
+                    "cardio_control_params.HR_n": 50
                 }
 
             },
@@ -144,25 +148,149 @@
                 "params.w":-25,
                 "params.K_O2": -25,
                 "params.K_CO2": -25,
-                "params.K_O2_tau": -25
+                "params.K_O2_tau": -25,
+                "respiratory_control_params.RR_0": 25,
+                "cardio_control_params.HR_n": 25
+
 
             },
             "decay": {
-                "bloodflows.sh": {
-                    "min": -20,
-                    "max": -30,
-                    "timeValue": 60,
-                    "timeUnit": "m"
+                "rate":{
+                    "timeValue": 10,
+                    "timeUnit": "minutes",
+                    "type": "continuous"
+                },
+                "parameters":{
+                    "bloodflows.sh": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "params.w": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "params.K_O2": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "params.K_CO2": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "params.K_O2_tau": {
+                        "min": -1,
+                        "max": -2
+                    }
                 }
             },
             "recovery": {
-                "bloodflows.sh": {
-                    "min": -10,
-                    "max": 0,
-                    "unit": 60
+                "rate":{
+                    "timeValue": 10,
+                    "timeUnit": "minutes",
+                    "type": "continuous"
+                },
+                "parameters":{
+                    "bloodflows.sh": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "params.w": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "params.K_O2": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "params.K_CO2": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "params.K_O2_tau": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "respiratory_control_params.RR_0": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "cardio_control_params.HR_n": {
+                        "min": -1,
+                        "max": -2
+                    }
+
                 }
             }
         }
 
+    },
+    "sepsis": {
+        "severity_1": {
+            "startingConditions": {
+                "bloodflows.sh": -25,
+                "respiratory_control_params.RR_0": -25,
+                "cardio_control_params.HR_n": 25,
+                "cardio_control_params.UV_n":25,
+                "cardio_control_params.R_n":-25
+            },
+            "decay": {
+                "rate":{
+                    "timeValue": 10,
+                    "timeUnit": "minutes",
+                    "type": "continuous"
+                },
+                "parameters":{
+                    "bloodflows.sh": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "respiratory_control_params.RR_0": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "cardio_control_params.HR_n": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "cardio_control_params.UV_n": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "cardio_control_params.R_n": {
+                        "min": -1,
+                        "max": -2
+                    }
+                }
+            },
+            "recovery": {
+                "rate":{
+                    "timeValue": 10,
+                    "timeUnit": "minutes",
+                    "type": "continuous"
+                },
+                "parameters":{
+                    "bloodflows.sh": {
+                        "min": 1,
+                        "max": 2
+                    },
+                    "respiratory_control_params.RR_0": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "cardio_control_params.HR_n": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "cardio_control_params.UV_n": {
+                        "min": -1,
+                        "max": -2
+                    },
+                    "cardio_control_params.R_n": {
+                        "min": 1,
+                        "max": 2
+                    }
+                }
+            }
+        }
     }
 }
