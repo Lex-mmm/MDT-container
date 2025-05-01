@@ -4,7 +4,8 @@ import threading
 from digital_twin_model import DigitalTwinModel  # Import your updated class
 from redis import Redis
 from Comms.redisClient import RedisInit
-
+import time, random
+import calendar
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
