@@ -340,7 +340,7 @@ class DigitalTwinModel:
 
         # Need to get x[25], which is Pmus
         Pmus = y[25]
-
+        
         # Calculate the pressures for cardiovascular model
         P = np.zeros(10)
         P[0] = self.elastance[0, 0] * (V[0] - self.uvolume[0]) + Pmus
@@ -442,6 +442,8 @@ class DigitalTwinModel:
         R_c = R_n   - Δ_R_c
         UV_c = UV_n + Δ_UV_c
         RR  = RR0  + Δ_RR_c
+
+        #print(R_c, UV_c, HR, RR)
 
         # Update heart/respiratory rates
         self.HR, self.RR = HR, RR

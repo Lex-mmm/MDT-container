@@ -36,7 +36,7 @@ my_uuid = uuid.uuid5(base_uuid, "12345")
 class SDCProvider:
     def __init__(self, active=False):
 
-        self.active = active
+
         if not self.active:
             pass
         else:
