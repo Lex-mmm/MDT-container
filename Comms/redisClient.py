@@ -49,7 +49,10 @@ class RedisInit:
         print("Indices created")
 
         self.sdcProvider = SDCProvider()
-        self.sdcProvider.start() ## start the SDC provider
+        
+        if self.sdcProvider.active:
+            print("Starting SDC provider...")
+            self.sdcProvider.start()
 
     def createIndices(self):
 

@@ -34,63 +34,71 @@ my_uuid = uuid.uuid5(base_uuid, "12345")
 
 
 class SDCProvider:
-    def __init__(self):
-        self.CertFolder = os.path.join(os.getcwd(), "Comms/static/ssl")
-        print(f"Certificate folder: {self.CertFolder}")
-        #self.CertFolder = "Comms/ssl/"
-        self.mdibLocation = os.path.join(os.getcwd(), "Comms/static/mdib_draeger.xml")
+    def __init__(self, active=False):
 
-        parser = argparse.ArgumentParser(description="Start SDC Provider")
-        parser.add_argument('--adapter', default='en0', help="Network adapter to use (default: en0)")
-        args = parser.parse_args()
-        NETWORK_ADAPTER = args.adapter
 
-        # Start discovery on the specified network adapter
-        my_discovery = WSDiscoverySingleAdapter(NETWORK_ADAPTER)
-        my_discovery.start()
-        
-        try:
-            with open("Comms/static/mdib_draeger.xml", "r") as draegerMdib:
-                self.mdibFrame = ProviderMdib.from_mdib_file(self.mdibLocation)
-        except Exception as e:
-            print(f"Error reading MDIB file: {e}")
-            # Set the location context for discovery.
-        
+        if not self.active:
+            pass
+        else:
 
-        self.my_location = SdcLocation(fac='UMCU', poc='ICU_3', bed='01')  # Facility, Department, Bed
 
-        # Set model information for discovery.
-        dpws_model = ThisModelType(
-            manufacturer='Draeger',
-            manufacturer_url='www.draeger.com',
-            model_name='VirtualPatientTestDevice',
-            model_number='1.0',
-            model_url='www.draeger.com/model',
-            presentation_url='www.draeger.com/model/presentation'
-        )
-        dpws_device = ThisDeviceType(
-            friendly_name='TestDevice',
-            firmware_version='Version1',
-            serial_number='12345'
-        )
 
-        # Load SSL context.
-        my_ssl_context = certloader.mk_ssl_contexts_from_folder(
-            ca_folder = self.CertFolder,
-            ssl_passwd='dummypass'
-        )
+            self.CertFolder = os.path.join(os.getcwd(), "Comms/static/ssl")
+            print(f"Certificate folder: {self.CertFolder}")
+            #self.CertFolder = "Comms/ssl/"
+            self.mdibLocation = os.path.join(os.getcwd(), "Comms/static/mdib_draeger.xml")
 
-        # Create the SDC provider device.
-        specific_components = SdcProviderComponents(role_provider_class=ExtendedProduct)
-        self.sdc_provider = SdcProvider(
-            ws_discovery=my_discovery,
-            epr=my_uuid,
-            this_model=dpws_model,
-            this_device=dpws_device,
-            device_mdib_container=self.mdibFrame,
-            specific_components=specific_components,
-            ssl_context_container=my_ssl_context
-        )
+            parser = argparse.ArgumentParser(description="Start SDC Provider")
+            parser.add_argument('--adapter', default='en0', help="Network adapter to use (default: en0)")
+            args = parser.parse_args()
+            NETWORK_ADAPTER = args.adapter
+
+            # Start discovery on the specified network adapter
+            my_discovery = WSDiscoverySingleAdapter(NETWORK_ADAPTER)
+            my_discovery.start()
+            
+            try:
+                with open("Comms/static/mdib_draeger.xml", "r") as draegerMdib:
+                    self.mdibFrame = ProviderMdib.from_mdib_file(self.mdibLocation)
+            except Exception as e:
+                print(f"Error reading MDIB file: {e}")
+                # Set the location context for discovery.
+            
+
+            self.my_location = SdcLocation(fac='UMCU', poc='ICU_3', bed='01')  # Facility, Department, Bed
+
+            # Set model information for discovery.
+            dpws_model = ThisModelType(
+                manufacturer='Draeger',
+                manufacturer_url='www.draeger.com',
+                model_name='VirtualPatientTestDevice',
+                model_number='1.0',
+                model_url='www.draeger.com/model',
+                presentation_url='www.draeger.com/model/presentation'
+            )
+            dpws_device = ThisDeviceType(
+                friendly_name='TestDevice',
+                firmware_version='Version1',
+                serial_number='12345'
+            )
+
+            # Load SSL context.
+            my_ssl_context = certloader.mk_ssl_contexts_from_folder(
+                ca_folder = self.CertFolder,
+                ssl_passwd='dummypass'
+            )
+
+            # Create the SDC provider device.
+            specific_components = SdcProviderComponents(role_provider_class=ExtendedProduct)
+            self.sdc_provider = SdcProvider(
+                ws_discovery=my_discovery,
+                epr=my_uuid,
+                this_model=dpws_model,
+                this_device=dpws_device,
+                device_mdib_container=self.mdibFrame,
+                specific_components=specific_components,
+                ssl_context_container=my_ssl_context
+            )
 
 
 
