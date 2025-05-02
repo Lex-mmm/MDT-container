@@ -525,7 +525,7 @@
     },
     "cardio_control_params.HR_n": {
         "value": 70,
-        "min": 40,
+        "min": 30,
         "max": 210
     },
     "cardio_control_params.R_n": {
