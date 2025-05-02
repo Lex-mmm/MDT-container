@@ -4,7 +4,7 @@
             "intervention": {
                 "parameters": {
                     "gas_exchange_params.FI_O2": {
-                        "value": 0.21,
+                        "value": 0.1,
                         "type": "absolute",
                         "action": "set",
                         "rate": {
