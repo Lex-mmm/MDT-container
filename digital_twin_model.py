@@ -13,7 +13,7 @@ from Events.Pathologies.pathology import Pathology
 from Events.Therapy.therapies import Therapy
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="sepsis.json", 
+    def __init__(self, patient_id, param_file="healthyFlat.json", 
                  data_callback=None, 
                  sleep=True,
                  time_step=0.01
@@ -54,7 +54,11 @@ class DigitalTwinModel:
 
         self.current_heart_rate = 0  # Initialize monitored value
         #self.master_parameters = {}  # Initialize master parameters
+        # In your __init__ of DigitalTwinModel, add:
+        self.use_reflex = False  # Set to False if you want to skip reflex calculations
 
+
+        self.AF = 0 # Atrial Fibrillation flag
         # Initialize Inference class
         self._compute_all_derived_params()
 
@@ -257,9 +261,9 @@ class DigitalTwinModel:
         TBV = self.master_parameters['misc_constants.TBV']['value']
         state[:10] = TBV * (self.uvolume / np.sum(self.uvolume))
         # try to adjust the initial volumes
-        state[0]=state[0]+200
-        state[1]=state[1]+100
-        state[2]=state[2]+100   
+        #state[0]=state[0]+200
+        #state[1]=state[1]+100
+        #state[2]=state[2]+100   
         # Initialize mechanical states (indices 10 to 14)
         state[10:15] = np.zeros(5)  # Adjust initial values if necessary
         # Initialize other states as before
@@ -296,30 +300,37 @@ class DigitalTwinModel:
         self.Tvs = 0.16 + 0.2 * self.HP
 
     def calculate_elastances(self, t):
-        """Calculate heart elastances."""
-        HP = self.HP
-        Tas = self.Tas
-        Tav = self.Tav
-        Tvs = self.Tvs
-        T = self.dt
-        ncc = (t % HP) / T
+        """Calculate heart elastances based on the current phase in the heart cycle."""
+        # Heart period and timing parameters
+        HP = self.HP           # Total heart period (seconds)
+        Tas = self.Tas         # Duration of activation (systolic phase)
+        Tav = self.Tav         # Ventricular isovolumetric relaxation time (not used in activation)
+        Tvs = self.Tvs         # Duration of ventricular activation (systolic contraction phase)
+        
+        # Normalize current time within the heart period to a fraction (0 to 1)
+        phase_fraction = (t % HP) / HP
 
-        if ncc <= round(Tas / T):
-            aaf = np.sin(np.pi * ncc / (Tas / T))
+        # Calculate activation function for contraction (aaf) during the early phase
+        if phase_fraction <= Tas / HP:
+            # Scale phase so it goes from 0 to pi over the activation time
+            aaf = np.sin(np.pi * phase_fraction / (Tas / HP))
         else:
-            aaf = 0
+            aaf = 0.0
 
-
+        # Elastance during early contraction using ascending elastance parameters (indices 8 and 4)
         ela = self.elastance[0, 8] + (self.elastance[1, 8] - self.elastance[0, 8]) * aaf
         era = self.elastance[0, 4] + (self.elastance[1, 4] - self.elastance[0, 4]) * aaf
 
-        if ncc <= round((Tas + Tav) / T):
-            vaf = 0
-        elif ncc <= round((Tas + Tav + Tvs) / T):
-            vaf = np.sin(np.pi * (ncc - (Tas + Tav) / T) / (Tvs / T))
+        # Calculate activation function for the second elastance component (vaf) during later contraction
+        if phase_fraction <= (Tas + Tav) / HP:
+            vaf = 0.0
+        elif phase_fraction <= (Tas + Tav + Tvs) / HP:
+            # Scale the phase for the second activation phase
+            vaf = np.sin(np.pi * (phase_fraction - (Tas + Tav) / HP) / (Tvs / HP))
         else:
-            vaf = 0
-        #print(f"Current state of elastance: {self.elastance[1,9]}")
+            vaf = 0.0
+
+        # Elastance during later contraction using descending elastance parameters (indices 9 and 5)
         elv = self.elastance[0, 9] + (self.elastance[1, 9] - self.elastance[0, 9]) * vaf
         erv = self.elastance[0, 5] + (self.elastance[1, 5] - self.elastance[0, 5]) * vaf
 
@@ -443,7 +454,12 @@ class DigitalTwinModel:
         UV_c = UV_n + Δ_UV_c
         RR  = RR0  + Δ_RR_c
 
-        #print(R_c, UV_c, HR, RR)
+        # Cap HR to non-pathological range
+        if HR > self.master_parameters['cardio_control_params.HR_n']['max'] and self.AF == 0:
+            # If AF is not present, cap HR to max
+            HR = 200
+        elif HR < self.master_parameters['cardio_control_params.HR_n']['min'] and self.AF == 0:
+            HR = 30
 
         # Update heart/respiratory rates
         self.HR, self.RR = HR, RR
@@ -463,6 +479,8 @@ class DigitalTwinModel:
             P_ao = self.ventilator_pressure(t)
             Pmus_dt = 0
 
+
+
         # ── 4) Cardiovascular Pressures P_i ──────────────────────────────────────
         ela, elv, era, erv = self.get_inputs(t)
         P = np.zeros(10)
@@ -477,6 +495,8 @@ class DigitalTwinModel:
         P[8] = ela * (V[8] - self.uvolume[8]) + mech[4]
         P[9] = elv * (V[9] - self.uvolume[9]) + mech[4]
 
+
+        #print(np.sum(V),HR,P[0])
         # ── 5) Flows F_i with simple reversal handling ────────────────────────────
         F = np.zeros(10)
         for i in range(9):
@@ -495,8 +515,16 @@ class DigitalTwinModel:
         #self._update_pressure_buffer(P[0])
 
         # ── 7) Chemo‐ & Baroreflex updates via one call ──────────────────────────
-        dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = self.apply_reflexes(
-            p_a_CO2, Δ_RR_c, Δ_Pmus_c, Δ_HR_c, Δ_R_c, Δ_UV_c)
+
+
+        # Then in your extended_state_space_equations method:
+        if self.use_reflex:
+            dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = self.apply_reflexes(
+                p_a_CO2, Δ_RR_c, Δ_Pmus_c, Δ_HR_c, Δ_R_c, Δ_UV_c
+            )
+        else:
+            dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = 0, 0, 0, 0, 0
+            self.recent_MAP = 90
         # ── 8) Volume derivatives dV/dt ──────────────────────────────────────────
         dVdt = np.zeros(10)
         dVdt[0] = F[9] - F[0]
@@ -653,7 +681,7 @@ class DigitalTwinModel:
         dDelta_Pmus_c = (-Delta_Pmus_c + Gc_A * u_c) / tau_c_A
         dDelta_RR_c   = (-Delta_RR_c   + Gc_f * u_c) / tau_p_f
 
-        #print(recent_MAP, self.HR)
+        #print(hr_err)
 
         return dDelta_RR_c, dDelta_Pmus_c, dDelta_HR_c, dDelta_R_c, dDelta_UV_c
 
@@ -684,7 +712,6 @@ class DigitalTwinModel:
 
             sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
             self.current_state = sol.y[:, -1]  # Update state to the latest solution
-            #self.current_state[3] += 10 
 
             # Compute variables at the latest time point
             P, F, HR, Sa_O2, RR = self.compute_variables(sol.t[-1], self.current_state)
@@ -732,7 +759,12 @@ class DigitalTwinModel:
                 self.alarmModule.evaluate_data(curr_data = data, historic_data = self.data_epoch)
                 last_emit_time = self.t
 
-
+            # Print the current state every 5 seconds
+            if self.t - last_print_time >= 5:
+                #print(f"Patient {self.patient_id} - Time: {self.t:.2f}, HR: {HR:.2f}, SaO2: {Sa_O2:.2f}, MAP: {self.recent_MAP:.2f}")
+                # and print the cardiac parameters
+                #print(self.master_parameters['cardio_parameters.elastance.max.9.V_D']['value'])
+                last_print_time = self.t
 
             # Update simulation time and pause
             self.t += self.dt

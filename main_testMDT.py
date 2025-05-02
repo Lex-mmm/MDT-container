@@ -11,7 +11,7 @@ class DummyRedisClient:
         # No operation; ignore calls during test
         pass
 
-def monitor_loop(model, run_time=100):
+def monitor_loop(model, run_time=500):
     """
     Let the model run for run_time seconds, printing HR and SaO2 each second.
     """
@@ -53,7 +53,7 @@ def main():
     sim_thread.start()
 
     # 3) Monitor for 10 seconds then shut off
-    monitor_loop(twin, run_time=100)
+    monitor_loop(twin, run_time=500)
 
     sim_thread.join()
     print("Done.")
