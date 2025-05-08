@@ -104,6 +104,7 @@ class RedisInit:
                     '$.last_name', 'AS', 'last_name', 'TEXT',
                     '$.dob', 'AS', 'dob', 'NUMERIC', 'SORTABLE',
                     '$.gender', 'AS', 'gender', 'TAG',
+                    '$.admit_location', 'AS', 'admit_location', 'TEXT'
             )
             print("patient index created.")
         except Exception as e:

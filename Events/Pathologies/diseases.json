@@ -149,9 +149,9 @@
             },
             "decay": {
                 "bloodflows.sh": {
-                    "min": -20,
-                    "max": -30,
-                    "timeValue": 60,
+                    "min": -0.33,
+                    "max": -0.5,
+                    "timeValue": 1,
                     "timeUnit": "m"
                 }
             },
