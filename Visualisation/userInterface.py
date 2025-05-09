@@ -3,6 +3,8 @@ import pyqtgraph as pg
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt6.QtCore import QTimer, Qt
 from random import sample
+import requests
+import pyodbc
 from datetime import datetime, timedelta
 # Always start by initializing Qt (only once per application)
 
@@ -43,11 +45,16 @@ class MainWindow(QMainWindow):
         self.thirdEvent = QtWidgets.QPushButton('MI-3')
         self.thirdEvent.clicked.connect(self.event_handler)
 
-        self.fourthEvent = QtWidgets.QPushButton('O2 | 5l/min')
+        self.fourthEvent = QtWidgets.QPushButton('FI_O2 | 0.1')
         self.fourthEvent.clicked.connect(self.event_handler)
 
-        self.fifthEvent = QtWidgets.QPushButton('O2 | 10l/min')
+        self.fifthEvent = QtWidgets.QPushButton('O2 | 5l/min')
         self.fifthEvent.clicked.connect(self.event_handler)
+
+        self.sixthEvent = QtWidgets.QPushButton('NaCl | 500CC')
+        self.sixthEvent.clicked.connect(self.event_handler)
+
+
 
         
 
@@ -64,6 +71,8 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.thirdEvent, 2, 7)
         self.layout.addWidget(self.fourthEvent, 3, 7)
         self.layout.addWidget(self.fifthEvent, 4, 7)
+        self.layout.addWidget(self.sixthEvent, 5, 7)
+        
 
 
         self.w.setLayout(self.layout)
@@ -110,6 +119,7 @@ class MainWindow(QMainWindow):
                         'eventType': 'disease'
                     }
                     print("Event triggered: MI-2")
+
                 case 'MI-3':
                     payload = {
                         'event': 'myocardialInfarction',
@@ -119,18 +129,26 @@ class MainWindow(QMainWindow):
                     print("Event triggered: MI-3")
                 case 'O2 | 5l/min':
                     payload = {
-                        'event': 'O2',
+                        'event': 'O2-Suppletion',
                         'eventSeverity': '5',
                         'eventType': 'treatment'
                     }
                     print("Event triggered: O2 | 5l/min")
-                case 'O2 | 10l/min':
+
+                case 'NaCl | 500CC':
                     payload = {
-                        'event': 'O2',
-                        'eventSeverity': '10',
+                        'event': 'NaCl-suppletion',
+                        'eventSeverity': '500',
                         'eventType': 'treatment'
                     }
-                    print("Event triggered: O2 | 10l/min")
+                    print("Event triggered: NaCl suppletion")
+                case 'FI_O2 | 0.1':
+                    payload = {
+                        'event': 'O2-Suppletion',
+                        'eventSeverity': '0',
+                        'eventType': 'treatment'
+                    }
+                    print("Event triggered: FI_O2 | 0.1")
                 case _:
                     print(f"Unknown event: {sender}")
             # Send the payload to the server
@@ -140,7 +158,8 @@ class MainWindow(QMainWindow):
 
 
     def update_selection(self, choice):
-        self.pat_id = choice
+        choiceNumeric = choice.split('   |   ')[0]  # Extract the ptID from the selected item
+        self.pat_id = choiceNumeric
 
     def update_alarms(self):
             if self.pat_id == '' or self.pat_id == None:
@@ -149,41 +168,46 @@ class MainWindow(QMainWindow):
 
                 result = self.redis.execute_command(
                     'FT.SEARCH', 'alarm_index',
-                    f'@ptID:{{{self.pat_id}}}',  # Query by ptID
+                    f'@ptID:{{{str(self.pat_id)}}}',  # Query by ptID
                     'SORTBY', 'timestamp', 'ASC',
                     'LIMIT', '0', '25'  # Get the last 10 entries
                 )
 
                 ## Add the alarms to the list if not already present
-                if result:
+                if result and len(result) > 1:
                     data = self.deserialize(result)
                     #print(f"Alarm for patient {self.pat_id}: {result}")
                     #return result
-                    if data:
+                    if data and len(data) > 1:
                         #print(f"Alarm for patient {self.pat_id}: {data}")
                         for entry in data:
                             entryData = data[entry]
                             #print(entryData)
                             timeFormatted = datetime.fromtimestamp(float(entryData['timestamp'])).strftime('%H:%M:%S')
                             alarm = f"{timeFormatted} \t  {entryData['alarm_status']} \t {entryData['alarm_msg']}"
+
                             if alarm not in [self.alarm_list.item(i).text() for i in range(self.alarm_list.count())]:
                                 self.alarm_list.insertItem(0, alarm)
             
     def update_patients(self):
         result = self.redis.execute_command(
-            'FT.AGGREGATE', 'vital_sign_index',
+            'FT.AGGREGATE', 'demographics_index',
             '*',  # Match all entries
             'GROUPBY', '1', '@ptID'
         )
 
         # Parse the result to extract unique ptIDs
         unique_ptIDs = [row[1] for row in result[1:]]
-
-        current_items = [self.pt_select.itemText(i) for i in range(self.pt_select.count())]
-
-        for item in unique_ptIDs:
-            if item not in current_items:
-                self.pt_select.addItem(item)
+        for selectID in unique_ptIDs:
+            ID_data = self.redis.execute_command(
+                'FT.SEARCH', 'demographics_index',
+                f'@ptID:{{{str(selectID)}}}'
+                )
+            ID_data = self.deserialize(ID_data)[f'PATIENTS:{selectID}']
+            ID_line = f'{ID_data["ptID"]}   |   {ID_data["last_name"]},  {ID_data["first_name"]}'
+            current_items = [self.pt_select.itemText(i) for i in range(self.pt_select.count())]
+            if ID_line not in current_items:
+                self.pt_select.addItem(ID_line)
 
     def deserialize(self, data):
         ## input is key-value of options as resulted from the search-index
