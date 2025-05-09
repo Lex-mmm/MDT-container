@@ -710,7 +710,7 @@ class DigitalTwinModel:
                     self.events.remove(processedEvent)  # Remove the event after processing, else keep it
 
 
-            sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='RK45')
+            sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='LSODA', rtol=1e-6, atol=1e-6)
             self.current_state = sol.y[:, -1]  # Update state to the latest solution
 
             # Compute variables at the latest time point
