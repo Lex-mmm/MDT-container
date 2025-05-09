@@ -450,7 +450,7 @@ class DigitalTwinModel:
 
         # Apply baroreflex deltas
         HR = HR_n   - Δ_HR_c
-        R_c = R_n   - Δ_R_c
+        R_c = R_n  - Δ_R_c
         UV_c = UV_n + Δ_UV_c
         RR  = RR0  + Δ_RR_c
 
@@ -681,7 +681,7 @@ class DigitalTwinModel:
         dDelta_Pmus_c = (-Delta_Pmus_c + Gc_A * u_c) / tau_c_A
         dDelta_RR_c   = (-Delta_RR_c   + Gc_f * u_c) / tau_p_f
 
-        #print(hr_err)
+        #print(hr_err, dDelta_HR_c, dDelta_R_c, dDelta_UV_c)
 
         return dDelta_RR_c, dDelta_Pmus_c, dDelta_HR_c, dDelta_R_c, dDelta_UV_c
 

@@ -549,9 +549,9 @@
         "max": 2
     },
     "cardio_control_params.Gc_hr": {
-        "value": 2,
-        "min": 2,
-        "max": 2
+        "value": 0.2,
+        "min": 0.2,
+        "max": 0.2
     },
     "cardio_control_params.Gc_r": {
         "value": 0.005,
@@ -564,9 +564,9 @@
         "max": 0.02
     },
     "cardio_control_params.tau_hr": {
-        "value": 105,
-        "min": 105,
-        "max": 105
+        "value": 10.5,
+        "min": 10.5,
+        "max": 10.5
     },
     "cardio_control_params.tau_r": {
         "value": 500,
