@@ -43,7 +43,7 @@ def main():
         patient_id="demo_patient",
         param_file="healthyFlat.json",
         sleep=True,
-        time_step=0.02
+        time_step=0.1
     )
     # Inject the dummy redis client so that redis calls are ignored during testing
     twin.redisClient = DummyRedisClient()

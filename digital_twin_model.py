@@ -16,8 +16,7 @@ class DigitalTwinModel:
     def __init__(self, patient_id, param_file="healthyFlat.json", 
                  data_callback=None, 
                  sleep=True,
-                 time_step=0.01
-                 ): ## modify for brute-force jobs
+                 time_step=0.01):
         self.patient_id = patient_id
         self.running = False
         self.t = 0
@@ -28,17 +27,16 @@ class DigitalTwinModel:
         self.P_buffer_sum = 0  # Store the running sum to calculate MAP more efficiently
         self.print_interval = 5  # Interval for printing heart rate
         self.data_callback = data_callback  # Callback function to emit data
-        self.output_frequency = 1  # Output frequency for data callback -> 1 Hz
+        self.output_frequency = 10  # Output frequency for data callback -> 1 Hz
 
         self.pathologies = Pathology()  # Initialize pathologie-events 
         self.therapeutic = Therapy()
         self.alarmModule = alarmModule(self.patient_id)  # Initialize alarm module
         self.sleep = sleep  # Sleep between iterations, boolean
 
-        self.events = [] ## Actionable event introduction
+        self.events = []  # Actionable event introduction
 
-        ## set datapoint amount in local memory
-        self.data_points = 120 ## 2 minutes 
+        self.data_points = 120  # 2 minutes 
 
         self.data_epoch = {}
         self.start_timestamp = datetime.now()
@@ -53,14 +51,13 @@ class DigitalTwinModel:
         self.current_state = self.initialize_state()
 
         self.current_heart_rate = 0  # Initialize monitored value
-        #self.master_parameters = {}  # Initialize master parameters
-        # In your __init__ of DigitalTwinModel, add:
-        self.use_reflex = False  # Set to False if you want to skip reflex calculations
-
-
-        self.AF = 0 # Atrial Fibrillation flag
-        # Initialize Inference class
+        self.use_reflex = True  # Set to False if you want to skip reflex calculations
+        self.AF = 0  # Atrial Fibrillation flag
         self._compute_all_derived_params()
+        # 
+        self.Fes_delayed = [2.66] * int(2 / self.dt)
+        self.Fev_delayed = [4.66] * int(0.2 / self.dt)
+
 
     def add_disease(self, disease, severity):
         package = {
@@ -256,7 +253,7 @@ class DigitalTwinModel:
     def initialize_state(self):
         """Set initial state variables based on loaded parameters."""
         # Initialize state variables for the combined model
-        state = np.zeros(29)  # Adjust the size if needed
+        state = np.zeros(32)  # Adjust the size if needed
         # Initialize blood volumes based on unstressed volumes
         TBV = self.master_parameters['misc_constants.TBV']['value']
         state[:10] = TBV * (self.uvolume / np.sum(self.uvolume))
@@ -289,6 +286,9 @@ class DigitalTwinModel:
         state[26] = 0   # Delta_HR_c
         state[27] = 0   # Delta_R_c
         state[28] = 0   # Delta_UV_c
+        state[29] = 90    # Pbaro (initial arterial pressure)
+        state[30] = 0     # dHRv
+        state[31] = 0     # dHRh
         return state
 
     def update_heart_period(self, HR):
@@ -436,6 +436,8 @@ class DigitalTwinModel:
         Δ_RR_c, Δ_Pmus_c = x[23], x[24]
         Pmus = x[25]
         Δ_HR_c, Δ_R_c, Δ_UV_c = x[26], x[27], x[28]
+        Pbaro, dHRv, dHRh = x[29], x[30], x[31]
+
 
         # ── 2) Pull “setpoint” parameters ─────────────────────────────────────────
         HR_n    = self.master_parameters['cardio_control_params.HR_n']['value']
@@ -449,10 +451,11 @@ class DigitalTwinModel:
         MV_mode = self.master_parameters['misc_constants.MV']['value']
 
         # Apply baroreflex deltas
-        HR = HR_n   - Δ_HR_c
-        R_c = R_n  - Δ_R_c
-        UV_c = UV_n + Δ_UV_c
-        RR  = RR0  + Δ_RR_c
+        self.HP = 60 / HR + dHRv + dHRh
+        HR = 60 / self.HP  # update HR for output tracking or logging if needed
+        R_c = R_n # - Δ_R_c
+        UV_c = UV_n #+ Δ_UV_c
+        RR  = RR0  #+ Δ_RR_c
 
         # Cap HR to non-pathological range
         if HR > self.master_parameters['cardio_control_params.HR_n']['max'] and self.AF == 0:
@@ -514,6 +517,12 @@ class DigitalTwinModel:
         # Use the new optimized buffer update function
         #self._update_pressure_buffer(P[0])
 
+
+        # ── 8) Volume derivatives dV/dt ──────────────────────────────────────────
+        dVdt = np.zeros(10)
+        dVdt[0] = F[9] - F[0]
+        for i in range(1,10):
+            dVdt[i] = F[i-1] - F[i]
         # ── 7) Chemo‐ & Baroreflex updates via one call ──────────────────────────
 
 
@@ -522,15 +531,12 @@ class DigitalTwinModel:
             dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = self.apply_reflexes(
                 p_a_CO2, Δ_RR_c, Δ_Pmus_c, Δ_HR_c, Δ_R_c, Δ_UV_c
             )
+            dPbarodt, ddHRv, ddHRh = self.baroreceptor_control(P[0], dVdt[0], self.elastance[0, 0], Pbaro, dHRv, dHRh)
+
         else:
             dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = 0, 0, 0, 0, 0
+            dPbarodt, ddHRv, ddHRh = 0, 0, 0
             self.recent_MAP = 90
-        # ── 8) Volume derivatives dV/dt ──────────────────────────────────────────
-        dVdt = np.zeros(10)
-        dVdt[0] = F[9] - F[0]
-        for i in range(1,10):
-            dVdt[i] = F[i-1] - F[i]
-
         # ── 9) Lung mechanics ─────────────────────────────────────────────────────
         R_lt = self.master_parameters['respi_constants.R_lt']['value']
         C_cw = self.C_cw
@@ -621,7 +627,8 @@ class DigitalTwinModel:
                 dc_Stis_O2, dc_Scap_O2,
                 dΔ_RR_c, dΔ_Pmus_c,
                 Pmus_dt,
-                dΔ_HR_c, dΔ_R_c, dΔ_UV_c
+                dΔ_HR_c, dΔ_R_c, dΔ_UV_c,
+                dPbarodt, ddHRv, ddHRh  # NEW
             ]
         ])
 
@@ -641,8 +648,6 @@ class DigitalTwinModel:
             self.P_buffer.append(new_pressure)  # Add the new pressure value
 
         #print(self.P_buffer_sum)  # Debugging print
-
-
 
     def apply_reflexes(self, p_a_CO2, Delta_RR_c, Delta_Pmus_c, 
                              Delta_HR_c, Delta_R_c, Delta_UV_c):
@@ -684,9 +689,49 @@ class DigitalTwinModel:
         #print(hr_err, dDelta_HR_c, dDelta_R_c, dDelta_UV_c)
 
         return dDelta_RR_c, dDelta_Pmus_c, dDelta_HR_c, dDelta_R_c, dDelta_UV_c
+    
+    def baroreceptor_control(self, P, dVdt, elastance, Pbaro, dHRv, dHRh):
+        tz = 6.37
+        tp = 20.76
 
+        Fas_min = 2.52
+        Fas_max = 47.87
+        Ka = 11.758
+        P_set = self.master_parameters['cardio_control_params.ABP_n']['value']
 
+        dPbarodt = (P + tz * (dVdt * elastance) - Pbaro) / tp
+        Fas = (Fas_min + Fas_max * np.exp((Pbaro - P_set)/Ka)) / (1 + np.exp((Pbaro - P_set)/Ka))
 
+        Fes_inf = 2.10
+        Fes_0 = 16.11
+        Kes = 0.0675
+        Fev_0 = 3.2
+        Fev_inf = 6.3
+        Kev = 7.06 
+        Fas_0 = 25
+
+        Fes = Fes_inf + (Fes_0 - Fes_inf) * np.exp(-Kes * Fas)
+        Fev = (Fev_0 + Fev_inf * np.exp((Fas - Fas_0) / Kev)) / (1 + np.exp((Fas - Fas_0) / Kev))
+
+        self.Fes_delayed.append(max(Fes, 2.66))
+        self.Fev_delayed.append(Fev)
+        if len(self.Fes_delayed) > int(2/self.dt):
+            self.Fes_delayed.pop(0)
+        if len(self.Fev_delayed) > int(0.2/self.dt):
+            self.Fev_delayed.pop(0)
+
+        Gh = -0.13
+        Ths = 2.0
+        Gv = 0.09
+        Thv = 1.5
+
+        sFh = Gh * (np.log(self.Fes_delayed[0] - 2.65 + 1) - 1.1)
+        sFv = Gv * (self.Fev_delayed[0] - 4.66)
+
+        ddHRv = (sFv - dHRv) / Thv
+        ddHRh = (sFh - dHRh) / Ths
+
+        return dPbarodt, ddHRv, ddHRh
 
     ## Start-stop calls
 
