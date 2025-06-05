@@ -132,4 +132,4 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Contact
 
-For questions or support, please contact Dr. LM van Loon at l.m.vanlooN@utwente.nl.
+For questions or support, please contact Dr. L.M. van Loon at l.m.vanloon@utwente.nl.
