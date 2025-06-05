@@ -623,5 +623,185 @@
         "value": 1,
         "min": 1,
         "max": 1
+    },
+    "baroreflex_params.tz": {
+        "value": 6.37,
+        "min": 6.37,
+        "max": 6.37
+    },
+    "baroreflex_params.tp": {
+        "value": 20.76,
+        "min": 20.76,
+        "max": 20.76
+    },
+    "baroreflex_params.Fas_min": {
+        "value": 2.52,
+        "min": 2.52,
+        "max": 2.52
+    },
+    "baroreflex_params.Fas_max": {
+        "value": 47.87,
+        "min": 47.87,
+        "max": 47.87
+    },
+    "baroreflex_params.Ka": {
+        "value": 11.758,
+        "min": 11.758,
+        "max": 11.758
+    },
+    "baroreflex_params.Fes_inf": {
+        "value": 2.10,
+        "min": 2.10,
+        "max": 2.10
+    },
+    "baroreflex_params.Fes_0": {
+        "value": 16.11,
+        "min": 16.11,
+        "max": 16.11
+    },
+    "baroreflex_params.Kes": {
+        "value": 0.0675,
+        "min": 0.0675,
+        "max": 0.0675
+    },
+    "baroreflex_params.Fev_0": {
+        "value": 3.2,
+        "min": 3.2,
+        "max": 3.2
+    },
+    "baroreflex_params.Fev_inf": {
+        "value": 6.3,
+        "min": 6.3,
+        "max": 6.3
+    },
+    "baroreflex_params.Kev": {
+        "value": 7.06,
+        "min": 7.06,
+        "max": 7.06
+    },
+    "baroreflex_params.Fas_0": {
+        "value": 25,
+        "min": 25,
+        "max": 25
+    },
+    "params.M_B_CO2": {
+        "value": 1.04,
+        "min": 1.04,
+        "max": 1.04
+    },
+    "params.M_CO2": {
+        "value": 4.42,
+        "min": 4.42,
+        "max": 4.42
+    },
+    "params.M_S_CO2": {
+        "value": 3.38,
+        "min": 3.38,
+        "max": 3.38
+    },
+    "params.M_B_O2": {
+        "value": -1.04,
+        "min": -1.04,
+        "max": -1.04
+    },
+    "params.M_S_O2": {
+        "value": -4.16,
+        "min": -4.16,
+        "max": -4.16
+    },
+    "params.V_Stis_CO2": {
+        "value": 14100,
+        "min": 14100,
+        "max": 14100
+    },
+    "params.V_Stis_O2": {
+        "value": 5000,
+        "min": 5000,
+        "max": 5000
+    },
+    "params.V_Bcap_CO2": {
+        "value": 9,
+        "min": 9,
+        "max": 9
+    },
+    "params.V_Bcap_O2": {
+        "value": 10,
+        "min": 10,
+        "max": 10
+    },
+    "params.V_Scap_CO2": {
+        "value": 141,
+        "min": 141,
+        "max": 141
+    },
+    "params.V_Scap_O2": {
+        "value": 50,
+        "min": 50,
+        "max": 50
+    },
+    "params.D_T_CO2": {
+        "value": 12.48,
+        "min": 12.48,
+        "max": 12.48
+    },
+    "params.D_T_O2": {
+        "value": 24.96,
+        "min": 24.96,
+        "max": 24.96
+    },
+    "gas_exchange_params.D_S_CO2": {
+        "value": 12.48,
+        "min": 12.48,
+        "max": 12.48
+    },
+    "gas_exchange_params.D_B_CO2": {
+        "value": 12.48,
+        "min": 12.48,
+        "max": 12.48
+    },
+    "gas_exchange_params.D_S_O2": {
+        "value": 24.96,
+        "min": 24.96,
+        "max": 24.96
+    },
+    "gas_exchange_params.D_B_O2": {
+        "value": 24.96,
+        "min": 24.96,
+        "max": 24.96
+    },
+    "initial_conditions.c_Bcap_CO2": {
+        "value": 0.469,
+        "min": 0.469,
+        "max": 0.469
+    },
+    "initial_conditions.c_Bcap_O2": {
+        "value": 0.112,
+        "min": 0.112,
+        "max": 0.112
+    },
+    "initial_conditions.conFrac": {
+        "value": 713,
+        "min": 713,
+        "max": 713
+    },
+    "initial_conditions.FD_O2": {
+        "value": 157,
+        "min": 157,
+        "max": 157
+    },
+    "initial_conditions.FD_CO2": {
+        "value": 7,
+        "min": 7,
+        "max": 7
+    },
+    "initial_conditions.Pset": {
+        "value": 90,
+        "min": 90,
+        "max": 90
+    },
+    "initial_conditions.Pmus": {
+        "value": -2,
+        "min": -5,
+        "max": 0
     }
 }

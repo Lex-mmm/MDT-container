@@ -1,6 +1,5 @@
-# digital_twin_model.py
-
 import numpy as np
+from scipy.signal import butter, filtfilt
 from scipy.integrate import solve_ivp
 from collections import deque
 from Alarms.alarmModule import alarmModule
@@ -16,47 +15,112 @@ class DigitalTwinModel:
     def __init__(self, patient_id, param_file="healthyFlat.json", 
                  data_callback=None, 
                  sleep=True,
-                 time_step=0.01):
+                 time_step=0.02):  # time_step argument will be effectively overridden by parameters
+        self._initialize_basic_attributes(patient_id, data_callback, sleep)
+        self._initialize_timing_attributes()
+        self._initialize_modules()
+        self._initialize_events_and_data()
+
+        # Load parameters and initialize the model
+        self._load_and_process_parameters(param_file)
+        self._initialize_simulation_environment()
+
+    def _initialize_basic_attributes(self, patient_id, data_callback, sleep):
+        """Initialize basic attributes like patient ID, callback, and sleep mode."""
         self.patient_id = patient_id
         self.running = False
         self.t = 0
-        self.dt = time_step  # Time step
-        window_sec = 20  # seconds
-        self.window_n = int(window_sec / self.dt)  # number of samples
-        self.P_buffer = deque(maxlen=self.window_n)  # Keep the buffer size fixed
-        self.P_buffer_sum = 0  # Store the running sum to calculate MAP more efficiently
+        self.data_callback = data_callback
+        self.sleep = sleep
+
+    def _initialize_timing_attributes(self):
+        """Initialize timing-related attributes."""
+        self.P_buffer_sum = 0  # Store the running sum
         self.print_interval = 5  # Interval for printing heart rate
-        self.data_callback = data_callback  # Callback function to emit data
         self.output_frequency = 10  # Output frequency for data callback -> 1 Hz
 
-        self.pathologies = Pathology()  # Initialize pathologie-events 
+    def _initialize_modules(self):
+        """Initialize external modules like pathologies, therapies, and alarms."""
+        self.pathologies = Pathology()  # Initialize pathology events
         self.therapeutic = Therapy()
         self.alarmModule = alarmModule(self.patient_id)  # Initialize alarm module
-        self.sleep = sleep  # Sleep between iterations, boolean
 
+    def _initialize_events_and_data(self):
+        """Initialize event and data-related attributes."""
         self.events = []  # Actionable event introduction
-
-        self.data_points = 120  # 2 minutes 
-
-        self.data_epoch = {}
+        self.data_points = 120  # 2 minutes
+        self.data_epoch = []  # Initialize as a list to avoid AttributeError
         self.start_timestamp = datetime.now()
 
-        # Load parameters from JSON
+    def _load_and_process_parameters(self, param_file):
+        """Load parameters from a file and process them."""
         self._load_parameters(param_file)
+        self.dt = self.master_parameters['misc_constants.T']['value']
+        self.window_size = int(30 / self.dt)  # 30 seconds window
+        self.P_buffer = deque([0.0] * self.window_size, maxlen=self.window_size)
 
-        # Initialize model parameters before state
-        self.initialize_model_parameters()
-
-        # Initialize state variables
+    def _initialize_simulation_environment(self):
+        """Initialize the simulation environment."""
+        self._cache_baroreflex_parameters()
+        self._compute_all_derived_params()
+        self.compute_cardiac_parameters()
+        self._cache_ode_parameters()
+        self._setup_simulation_environment()
         self.current_state = self.initialize_state()
-
         self.current_heart_rate = 0  # Initialize monitored value
         self.use_reflex = True  # Set to False if you want to skip reflex calculations
         self.AF = 0  # Atrial Fibrillation flag
-        self._compute_all_derived_params()
-        # 
         self.Fes_delayed = [2.66] * int(2 / self.dt)
         self.Fev_delayed = [4.66] * int(0.2 / self.dt)
+
+    def _cache_baroreflex_parameters(self):
+        """Cache parameters used frequently in baroreceptor_control for speed."""
+        self._baro_tz = self.master_parameters['baroreflex_params.tz']['value']
+        self._baro_tp = self.master_parameters['baroreflex_params.tp']['value']
+        self._baro_Fas_min = self.master_parameters['baroreflex_params.Fas_min']['value']
+        self._baro_Fas_max = self.master_parameters['baroreflex_params.Fas_max']['value']
+        self._baro_Ka = self.master_parameters['baroreflex_params.Ka']['value']
+        # P_set is derived from ABP_n
+        self._baro_P_set = self.master_parameters['cardio_control_params.ABP_n']['value']
+        self._baro_Fes_inf = self.master_parameters['baroreflex_params.Fes_inf']['value']
+        self._baro_Fes_0 = self.master_parameters['baroreflex_params.Fes_0']['value']
+        self._baro_Kes = self.master_parameters['baroreflex_params.Kes']['value']
+        self._baro_Fev_0 = self.master_parameters['baroreflex_params.Fev_0']['value']
+        self._baro_Fev_inf = self.master_parameters['baroreflex_params.Fev_inf']['value']
+        self._baro_Kev = self.master_parameters['baroreflex_params.Kev']['value']
+        self._baro_Fas_0 = self.master_parameters['baroreflex_params.Fas_0']['value']
+
+
+    def _cache_ode_parameters(self):
+        """Cache parameters used frequently in extended_state_space_equations for speed."""
+        self._ode_HR_n = self.master_parameters['cardio_control_params.HR_n']['value']
+        self._ode_HR_n_max = self.master_parameters['cardio_control_params.HR_n']['max']
+        self._ode_HR_n_min = self.master_parameters['cardio_control_params.HR_n']['min']
+        self._ode_R_n = self.master_parameters['cardio_control_params.R_n']['value']
+        self._ode_UV_n = self.master_parameters['cardio_control_params.UV_n']['value']
+        self._ode_RR0 = self.master_parameters['respiratory_control_params.RR_0']['value']
+        self._ode_FI_O2 = self.master_parameters['gas_exchange_params.FI_O2']['value']
+        self._ode_FI_CO2 = self.master_parameters['gas_exchange_params.FI_CO2']['value']
+        self._ode_CO_nom = self.master_parameters['bloodflows.CO']['value']
+        self._ode_shunt = self.master_parameters['bloodflows.sh']['value']
+        self._ode_MV_mode = self.master_parameters['misc_constants.MV']['value']
+        self._ode_Pmus_0 = self.master_parameters['respiratory_control_params.Pmus_0']['value']
+        self._ode_R_lt = self.master_parameters['respi_constants.R_lt']['value']
+        self._ode_R_bA = self.master_parameters['respi_constants.R_bA']['value']
+        self._ode_K_CO2 = self.master_parameters['params.K_CO2']['value']
+        self._ode_k_CO2 = self.master_parameters['params.k_CO2']['value']
+        self._ode_K_O2 = self.master_parameters['params.K_O2']['value']
+        self._ode_k_O2 = self.master_parameters['params.k_O2']['value']
+        self._ode_V_D = self.master_parameters['gas_exchange_params.V_D']['value']
+        self._ode_V_A = self.master_parameters['gas_exchange_params.V_A']['value']
+        self._ode_M_S_CO2 = self.master_parameters['params.M_S_CO2']['value']
+        self._ode_D_S_CO2 = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
+        self._ode_V_Stis_CO2 = self.master_parameters['params.V_Stis_CO2']['value']
+        self._ode_V_Scap_CO2 = self.master_parameters['params.V_Scap_CO2']['value']
+        self._ode_M_S_O2 = self.master_parameters['params.M_S_O2']['value']
+        self._ode_D_S_O2 = self.master_parameters['gas_exchange_params.D_S_O2']['value']
+        self._ode_V_Stis_O2 = self.master_parameters['params.V_Stis_O2']['value']
+        self._ode_V_Scap_O2 = self.master_parameters['params.V_Scap_O2']['value']
 
 
     def add_disease(self, disease, severity):
@@ -205,90 +269,95 @@ class DigitalTwinModel:
         self.uvolume = np.array([self.master_parameters[key]['value'] for key in cardio_uvolume])
 
 
-    def initialize_model_parameters(self):
-        """Initialize model parameters like elastance, resistance, uvolume, etc."""
-        # load cardiac computed parameters (elastance, resistance, uVolme)
-        self.compute_cardiac_parameters()
+    def _setup_simulation_environment(self):
+        """Initialize model structures like mechanical matrices, initial HR/HP, and data stores."""
+        self._initialize_mechanical_system()
+        self._initialize_heart_period()
+        self._initialize_data_buffers()
 
-        # Lung model equations
-        # Mechanical system parameters
+    def _initialize_mechanical_system(self):
+        """Set up the mechanical system matrices."""
         self.C_cw = 0.2445  # l/cmH2O
 
+        # Define A_mechanical matrix
         self.A_mechanical = np.array([
-            [-1 / (self.master_parameters['respi_constants.C_l']['value'] * ( 1.021 * 1.5 )) ## R_ml constant
-                     - 1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 
-                     1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 0, 0, 0],
+            [-1 / (self.master_parameters['respi_constants.C_l']['value'] * (1.021 * 1.5))  # R_ml constant
+             - 1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']),
+             1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_l']['value']), 0, 0, 0],
             [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.master_parameters['respi_constants.C_tr']['value']),
-                 -1 / (self.master_parameters['respi_constants.C_tr']['value'] * self.master_parameters['respi_constants.R_lt']['value']) - 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 
-                 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 0, 0],
+             -1 / (self.master_parameters['respi_constants.C_tr']['value'] * self.master_parameters['respi_constants.R_lt']['value']) - 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']),
+             1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_tr']['value']), 0, 0],
             [0, 1 / (self.master_parameters['respi_constants.R_tb']['value'] * self.master_parameters['respi_constants.C_b']['value']),
-             -1 / (self.master_parameters['respi_constants.C_b']['value'] * self.master_parameters['respi_constants.R_tb']['value']) - 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 
+             -1 / (self.master_parameters['respi_constants.C_b']['value'] * self.master_parameters['respi_constants.R_tb']['value']) - 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']),
              1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_b']['value']), 0],
-            [0, 0, 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_A']['value']), -1 / (self.master_parameters['respi_constants.C_A']['value'] * self.master_parameters['respi_constants.R_bA']['value']), 0],
-            [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.C_cw), -1 / (self.C_cw * self.master_parameters['respi_constants.R_lt']['value']), 0, 0, 0]
+            [0, 0, 1 / (self.master_parameters['respi_constants.R_bA']['value'] * self.master_parameters['respi_constants.C_A']['value']),
+             -1 / (self.master_parameters['respi_constants.C_A']['value'] * self.master_parameters['respi_constants.R_bA']['value']), 0],
+            [1 / (self.master_parameters['respi_constants.R_lt']['value'] * self.C_cw),
+             -1 / (self.C_cw * self.master_parameters['respi_constants.R_lt']['value']), 0, 0, 0]
         ])
 
+        # Define B_mechanical matrix
         self.B_mechanical = np.array([
-            [1 / ( ( 1.021 * 1.5 ) ## R_ml constant
-                  * self.master_parameters['respi_constants.C_l']['value']), 0, 0],
+            [1 / ((1.021 * 1.5) * self.master_parameters['respi_constants.C_l']['value']), 0, 0],
             [0, 1, 0],
             [0, 1, 0],
             [0, 1, 0],
             [0, 0, 1]
         ])
 
-        # Initialize heart period parameters
+    def _initialize_heart_period(self):
+        """Initialize heart period parameters."""
         self.HR = self.master_parameters['misc_constants.HR']['value']
         self.update_heart_period(self.HR)
 
-        # Initialize buffer for sliding window
-        self.dt = self.master_parameters['misc_constants.T']['value']
-        window_duration = 20  # seconds
-        self.window_size = int(window_duration / self.dt)
-        self.P_store = np.zeros((10, self.window_size))
-        self.F_store = np.zeros((10, self.window_size))
-        self.HR_store = np.zeros(self.window_size)
-        self.buffer_index = 0
+    def _initialize_data_buffers(self):
+        """Initialize data buffers for sliding windows."""
+        self.P_store = deque([0.0] * self.window_size, maxlen=self.window_size)
+        self.HR_store = deque([self.HR] * self.window_size, maxlen=self.window_size)
+        window_b = int(5 / self.dt)
+
+        self.avg_buffers = {
+            "HR": deque(maxlen=window_b),
+            "SaO2": deque(maxlen=window_b),
+            "RR": deque(maxlen=window_b),
+            "MAP": deque(maxlen=window_b),
+            "etCO2": deque(maxlen=window_b)
+        }
+
+
 
     def initialize_state(self):
         """Set initial state variables based on loaded parameters."""
         # Initialize state variables for the combined model
-        state = np.zeros(32)  # Adjust the size if needed
+        state = np.zeros(33)  # Adjust the size if needed
         # Initialize blood volumes based on unstressed volumes
         TBV = self.master_parameters['misc_constants.TBV']['value']
-        state[:10] = TBV * (self.uvolume / np.sum(self.uvolume))
-        # try to adjust the initial volumes
-        #state[0]=state[0]+200
-        #state[1]=state[1]+100
-        #state[2]=state[2]+100   
+        state[:10] = TBV * (self.uvolume / np.sum(self.uvolume)) 
         # Initialize mechanical states (indices 10 to 14)
         state[10:15] = np.zeros(5)  # Adjust initial values if necessary
         # Initialize other states as before
-        state[15] = 157 / 731  # FD_O2
-        state[16] = 7 / 731    # FD_CO2
+        state[15] = self.master_parameters['initial_conditions.FD_O2']['value'] / self.master_parameters['initial_conditions.conFrac']['value']  # FD_O2 
+        state[16] = self.master_parameters['initial_conditions.FD_CO2']['value'] / self.master_parameters['initial_conditions.conFrac']['value']    # FD_CO2
         state[17] = self.master_parameters['initial_conditions.p_a_CO2']['value']
         state[18] = self.master_parameters['initial_conditions.p_a_O2']['value']
         state[19] = self.master_parameters['initial_conditions.c_Stis_CO2']['value']
 
-        self.M_B_CO2 = 0.2 * self.master_parameters['params.M_O2']['value']
-        self.M_S_CO2 = (self.master_parameters['params.M_O2']['value'] *0.85 ) - self.M_B_CO2
-        self.D_T_CO2 = 9 / 60 * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_CO2']['value']
-        state[20] = 0.543 - self.M_S_CO2 / self.D_T_CO2 
+        # Use pre-calculated derived initial concentrations for c_Scap_CO2 and c_Scap_O2
+        state[20] = self.master_parameters['initial_conditions.c_Scap_CO2']['value']
 
         state[21] = self.master_parameters['initial_conditions.c_Stis_O2']['value']
-        self.D_T_O2 = 9 / 60 * self.master_parameters['params.w']['value'] / self.master_parameters['params.K_O2_tau']['value']
-        self.M_S_O2 = -5.2 - (-0.2 * self.master_parameters['params.M_O2']['value']) 
-
-        state[22] = 0.128 - self.M_S_O2 / self.D_T_O2
+        
+        state[22] = self.master_parameters['initial_conditions.c_Scap_O2']['value']
         state[23] = self.master_parameters['respiratory_control_params.Delta_RR_c']['value']
         state[24] = self.master_parameters['respiratory_control_params.Delta_Pmus_c']['value']
-        state[25] = -2  # Pmus
+        state[25] = self.master_parameters['initial_conditions.Pmus']['value']  # Pmus
         state[26] = 0   # Delta_HR_c
         state[27] = 0   # Delta_R_c
         state[28] = 0   # Delta_UV_c
-        state[29] = 90    # Pbaro (initial arterial pressure)
+        state[29] = self.master_parameters['initial_conditions.Pset']['value']    # Pbaro (initial arterial pressure)
         state[30] = 0     # dHRv
         state[31] = 0     # dHRh
+        state[32] = 0     # dRs
         return state
 
     def update_heart_period(self, HR):
@@ -391,11 +460,13 @@ class DigitalTwinModel:
         ##print(CaO2, p_a_O2, Sa_O2)
         # Store pressure value in the buffer
         self._update_pressure_buffer(P[0])
+
+        #self.recent_MAP = self._update_pressure_buffer(P[0])
         return P, F, HR, Sa_O2, RR
 
     def ventilator_pressure(self, t):
         """Ventilator pressure as a function of time (simple square wave for demonstration)."""
-        RR = self.master_parameters['respiratory_control_params.RR_0']['value']  # Respiratory Rate (breaths per minute)
+        RR = self._ode_RR0  # Respiratory Rate (breaths per minute) - USE CACHED
         PEEP = 5  # Positive End-Expiratory Pressure (cm H2O)
         T = 60 / RR  # period of one respiratory cycle in seconds
         IEratio = 1
@@ -420,7 +491,15 @@ class DigitalTwinModel:
             dPmus_dt = -Pmus_min / (exp_time * (1 - np.exp(-TE / exp_time))) * np.exp(-(cycle_time - TI) / exp_time)
 
         return np.array([0, dPmus_dt])
-
+    
+    def compute_filtered_map(self,buffer):
+        # fs = sample rate (Hz), cutoff = cutoff frequency (Hz)
+        fs=1/self.dt
+        cutoff=1
+        if len(buffer) < 10:
+            return np.mean(buffer)
+        b, a = butter(N=2, Wn=cutoff / (0.5 * fs), btype='low')
+        return filtfilt(b, a, buffer)[-1]
 
     def extended_state_space_equations(self, t, x):
         """
@@ -436,32 +515,36 @@ class DigitalTwinModel:
         Δ_RR_c, Δ_Pmus_c = x[23], x[24]
         Pmus = x[25]
         Δ_HR_c, Δ_R_c, Δ_UV_c = x[26], x[27], x[28]
-        Pbaro, dHRv, dHRh = x[29], x[30], x[31]
+        Pbarodt, dHRv, dHRs, dRs  = x[29], x[30], x[31], x[32]
 
 
         # ── 2) Pull “setpoint” parameters ─────────────────────────────────────────
-        HR_n    = self.master_parameters['cardio_control_params.HR_n']['value']
-        R_n     = self.master_parameters['cardio_control_params.R_n']['value']
-        UV_n    = self.master_parameters['cardio_control_params.UV_n']['value']
-        RR0     = self.master_parameters['respiratory_control_params.RR_0']['value']
-        FI_O2   = self.master_parameters['gas_exchange_params.FI_O2']['value']
-        FI_CO2  = self.master_parameters['gas_exchange_params.FI_CO2']['value']
-        CO_nom  = self.master_parameters['bloodflows.CO']['value']
-        shunt   = self.master_parameters['bloodflows.sh']['value']
-        MV_mode = self.master_parameters['misc_constants.MV']['value']
+        HR_n    = self._ode_HR_n
+        R_n     = self._ode_R_n
+        UV_n    = self._ode_UV_n
+        RR0     = self._ode_RR0
+        FI_O2   = self._ode_FI_O2
+        FI_CO2  = self._ode_FI_CO2
+        CO_nom  = self._ode_CO_nom
+        shunt   = self._ode_shunt
+        MV_mode = self._ode_MV_mode
 
         # Apply baroreflex deltas
-        self.HP = 60 / HR + dHRv + dHRh
-        HR = 60 / self.HP  # update HR for output tracking or logging if needed
-        R_c = R_n # - Δ_R_c
+        #HP = 60 / HR + dHRv + dHRh
+        #HR = 60 / HP  # update HR for output tracking or logging if needed
+
+        HR = 60/(60/HR_n + dHRv + dHRs) if self.use_reflex == True else HR_n
+        R_c = R_n + dRs if self.use_reflex == True else 1
+        #R_c=1
+        #R_c = R_n # - Δ_R_c
         UV_c = UV_n #+ Δ_UV_c
         RR  = RR0  #+ Δ_RR_c
-
+        #print(f"R_c: {R_c}, dRs: {dRs}")  
         # Cap HR to non-pathological range
-        if HR > self.master_parameters['cardio_control_params.HR_n']['max'] and self.AF == 0:
+        if HR > self._ode_HR_n_max and self.AF == 0:
             # If AF is not present, cap HR to max
             HR = 200
-        elif HR < self.master_parameters['cardio_control_params.HR_n']['min'] and self.AF == 0:
+        elif HR < self._ode_HR_n_min and self.AF == 0:
             HR = 30
 
         # Update heart/respiratory rates
@@ -473,7 +556,7 @@ class DigitalTwinModel:
             # spontaneous
             P_ao = 0
             Pmus_min = (
-                self.master_parameters['respiratory_control_params.Pmus_0']['value']
+                self._ode_Pmus_0
                 + Δ_Pmus_c
             )
             _, Pmus_dt = self.input_function(t, RR, Pmus_min)
@@ -481,7 +564,6 @@ class DigitalTwinModel:
             # ventilator
             P_ao = self.ventilator_pressure(t)
             Pmus_dt = 0
-
 
 
         # ── 4) Cardiovascular Pressures P_i ──────────────────────────────────────
@@ -525,20 +607,14 @@ class DigitalTwinModel:
             dVdt[i] = F[i-1] - F[i]
         # ── 7) Chemo‐ & Baroreflex updates via one call ──────────────────────────
 
-
+        #print(P[0], F[0], self.elastance[0,0], Pbarodt, dHRv, dHRs, dRs)
         # Then in your extended_state_space_equations method:
-        if self.use_reflex:
-            dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = self.apply_reflexes(
-                p_a_CO2, Δ_RR_c, Δ_Pmus_c, Δ_HR_c, Δ_R_c, Δ_UV_c
-            )
-            dPbarodt, ddHRv, ddHRh = self.baroreceptor_control(P[0], dVdt[0], self.elastance[0, 0], Pbaro, dHRv, dHRh)
-
+        if self.use_reflex== True:
+            dPbarodt, ddHRv, ddHRs,ddRs = self.baroreceptor_control(P[0], dVdt[0], self.elastance[0,0], Pbarodt, dHRv, dHRs, dRs)
         else:
-            dΔ_RR_c, dΔ_Pmus_c, dΔ_HR_c, dΔ_R_c, dΔ_UV_c = 0, 0, 0, 0, 0
-            dPbarodt, ddHRv, ddHRh = 0, 0, 0
-            self.recent_MAP = 90
+            dPbarodt, ddHRv, ddHRs,ddRs = 0, 0, 0, 0
         # ── 9) Lung mechanics ─────────────────────────────────────────────────────
-        R_lt = self.master_parameters['respi_constants.R_lt']['value']
+        R_lt = self._ode_R_lt
         C_cw = self.C_cw
         Ppl_dt = mech[0]/(R_lt*C_cw) - mech[1]/(C_cw*R_lt) + Pmus_dt
         dxdt_mech = (
@@ -549,7 +625,7 @@ class DigitalTwinModel:
         # ── 10) Gas exchange & alveolar ODEs ──────────────────────────────────────
         R_ml = 1.021 * 1.5
         Vdot_l = (P_ao - mech[0]) / R_ml
-        R_bA   = self.master_parameters['respi_constants.R_bA']['value']
+        R_bA   = self._ode_R_bA
         Vdot_A = (mech[2] - mech[3]) / R_bA
 
         p_D_CO2 = FD_CO2 * 713
@@ -558,23 +634,23 @@ class DigitalTwinModel:
         FA_O2   = p_a_O2  / 713
 
         K_CO2, k_CO2 = (
-            self.master_parameters['params.K_CO2']['value'],
-            self.master_parameters['params.k_CO2']['value']
+            self._ode_K_CO2,
+            self._ode_k_CO2
         )
         c_a_CO2 = K_CO2 * p_a_CO2 + k_CO2
 
         if p_a_O2 > 700:
             p_a_O2 = 700
         K_O2, k_O2 = (
-            self.master_parameters['params.K_O2']['value'],
-            self.master_parameters['params.k_O2']['value']
+            self._ode_K_O2,
+            self._ode_k_O2
         )
         c_a_O2 = K_O2 * (1 - np.exp(-k_O2 * p_a_O2))**2
 
         c_v_CO2, c_v_O2 = c_Scap_CO2, c_Scap_O2
 
-        V_D = self.master_parameters['gas_exchange_params.V_D']['value']
-        V_A = self.master_parameters['gas_exchange_params.V_A']['value']
+        V_D = self._ode_V_D
+        V_A = self._ode_V_A
 
         if (MV_mode == 1 and P_ao > 6 * 0.735) or (MV_mode == 0 and mech[0] < 0):
             dFD_O2_dt = Vdot_l * 1000 * (FI_O2  - FD_O2 ) / (V_D * 1000)
@@ -594,10 +670,10 @@ class DigitalTwinModel:
             dp_a_O2   = 863 * CO_nom * (1-shunt) * (c_v_O2 - c_a_O2) / (V_A * 1000)
 
         # ── 11) Systemic tissue ODEs ───────────────────────────────────────────────
-        M_S_CO2 = self.master_parameters['params.M_S_CO2']['value']
-        D_S_CO2 = self.master_parameters['gas_exchange_params.D_S_CO2']['value']
-        V_Stis_CO2 = self.master_parameters['params.V_Stis_CO2']['value']
-        V_Scap_CO2 = self.master_parameters['params.V_Scap_CO2']['value']
+        M_S_CO2 = self._ode_M_S_CO2
+        D_S_CO2 = self._ode_D_S_CO2
+        V_Stis_CO2 = self._ode_V_Stis_CO2
+        V_Scap_CO2 = self._ode_V_Scap_CO2
 
         dc_Stis_CO2 = (M_S_CO2 - D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)) / V_Stis_CO2
         dc_Scap_CO2 = (
@@ -605,10 +681,10 @@ class DigitalTwinModel:
             + D_S_CO2 * (c_Stis_CO2 - c_Scap_CO2)
         ) / V_Scap_CO2
 
-        M_S_O2 = self.master_parameters['params.M_S_O2']['value']
-        D_S_O2 = self.master_parameters['gas_exchange_params.D_S_O2']['value']
-        V_Stis_O2 = self.master_parameters['params.V_Stis_O2']['value']
-        V_Scap_O2 = self.master_parameters['params.V_Scap_O2']['value']
+        M_S_O2 = self._ode_M_S_O2
+        D_S_O2 = self._ode_D_S_O2
+        V_Stis_O2 = self._ode_V_Stis_O2
+        V_Scap_O2 = self._ode_V_Scap_O2
 
         dc_Stis_O2 = (M_S_O2 - D_S_O2 * (c_Stis_O2 - c_Scap_O2)) / V_Stis_O2
         dc_Scap_O2 = (
@@ -625,10 +701,10 @@ class DigitalTwinModel:
                 dp_a_CO2, dp_a_O2,
                 dc_Stis_CO2, dc_Scap_CO2,
                 dc_Stis_O2, dc_Scap_O2,
-                dΔ_RR_c, dΔ_Pmus_c,
+                0, 0,
                 Pmus_dt,
-                dΔ_HR_c, dΔ_R_c, dΔ_UV_c,
-                dPbarodt, ddHRv, ddHRh  # NEW
+                0, 0, 0,
+                dPbarodt, ddHRv, ddHRs,ddRs  # NEW
             ]
         ])
 
@@ -638,7 +714,7 @@ class DigitalTwinModel:
     def _update_pressure_buffer(self, new_pressure):
         """Efficiently update the pressure buffer."""
         # If the buffer is not full, simply append the new pressure
-        if len(self.P_buffer) < self.window_n:
+        if len(self.P_buffer) < self.window_size: # Use self.window_size
             self.P_buffer.append(new_pressure)
             self.P_buffer_sum += new_pressure  # Add to the sum when the buffer is not full
         else:
@@ -648,67 +724,26 @@ class DigitalTwinModel:
             self.P_buffer.append(new_pressure)  # Add the new pressure value
 
         #print(self.P_buffer_sum)  # Debugging print
-
-    def apply_reflexes(self, p_a_CO2, Delta_RR_c, Delta_Pmus_c, 
-                             Delta_HR_c, Delta_R_c, Delta_UV_c):
-        """Optimized version of applying reflexes using a running MAP."""
-        mp = self.master_parameters
+    def baroreceptor_control(self, P, dVdt, elastance, Pbaro, dHRv, dHRh, dRs):
         
-        # 1) baroreflex on HR, R & UV
-        if len(self.P_buffer) > 0:
-            self.recent_MAP = self.P_buffer_sum / len(self.P_buffer)  # Running MAP average
-        else:
-            self.recent_MAP = mp['cardio_control_params.ABP_n']['value']
-
-        #print(f"MAP: {self.recent_MAP}")
-
-        ABP_n   = mp['cardio_control_params.ABP_n']['value']
-        Gc_hr   = mp['cardio_control_params.Gc_hr']['value']
-        tau_hr  = mp['cardio_control_params.tau_hr']['value']
-        Gc_r    = mp['cardio_control_params.Gc_r']['value']
-        tau_r   = mp['cardio_control_params.tau_r']['value']
-        Gc_uv   = mp['cardio_control_params.Gc_uv']['value']
-        tau_uv  = mp['cardio_control_params.tau_uv']['value']
-
-        hr_err     = self.recent_MAP - ABP_n
-        dDelta_HR_c = (-Delta_HR_c + Gc_hr * hr_err) / tau_hr
-        dDelta_R_c  = (-Delta_R_c  + Gc_r  * hr_err) / tau_r
-        dDelta_UV_c = (-Delta_UV_c + Gc_uv * hr_err) / tau_uv
-
-        # 2) chemoreflex on RR & Pmus
-        PaCO2_n = mp['respiratory_control_params.PaCO2_n']['value']
-        Gc_A    = mp['respiratory_control_params.Gc_A']['value']
-        tau_c_A = mp['respiratory_control_params.tau_c_A']['value']
-        Gc_f    = mp['respiratory_control_params.Gc_f']['value']
-        tau_p_f = mp['respiratory_control_params.tau_p_f']['value']
-
-        u_c            = p_a_CO2 - PaCO2_n
-        dDelta_Pmus_c = (-Delta_Pmus_c + Gc_A * u_c) / tau_c_A
-        dDelta_RR_c   = (-Delta_RR_c   + Gc_f * u_c) / tau_p_f
-
-        #print(hr_err, dDelta_HR_c, dDelta_R_c, dDelta_UV_c)
-
-        return dDelta_RR_c, dDelta_Pmus_c, dDelta_HR_c, dDelta_R_c, dDelta_UV_c
-    
-    def baroreceptor_control(self, P, dVdt, elastance, Pbaro, dHRv, dHRh):
-        tz = 6.37
-        tp = 20.76
-
-        Fas_min = 2.52
-        Fas_max = 47.87
-        Ka = 11.758
-        P_set = self.master_parameters['cardio_control_params.ABP_n']['value']
+        # Use cached parameters for speed
+        tz = self._baro_tz
+        tp = self._baro_tp
+        Fas_min = self._baro_Fas_min
+        Fas_max = self._baro_Fas_max
+        Ka = self._baro_Ka
+        P_set = self._baro_P_set # This was cardio_control_params.ABP_n
 
         dPbarodt = (P + tz * (dVdt * elastance) - Pbaro) / tp
         Fas = (Fas_min + Fas_max * np.exp((Pbaro - P_set)/Ka)) / (1 + np.exp((Pbaro - P_set)/Ka))
 
-        Fes_inf = 2.10
-        Fes_0 = 16.11
-        Kes = 0.0675
-        Fev_0 = 3.2
-        Fev_inf = 6.3
-        Kev = 7.06 
-        Fas_0 = 25
+        Fes_inf = self._baro_Fes_inf
+        Fes_0 = self._baro_Fes_0
+        Kes = self._baro_Kes
+        Fev_0 = self._baro_Fev_0
+        Fev_inf = self._baro_Fev_inf
+        Kev = self._baro_Kev
+        Fas_0 = self._baro_Fas_0
 
         Fes = Fes_inf + (Fes_0 - Fes_inf) * np.exp(-Kes * Fas)
         Fev = (Fev_0 + Fev_inf * np.exp((Fas - Fas_0) / Kev)) / (1 + np.exp((Fas - Fas_0) / Kev))
@@ -724,107 +759,122 @@ class DigitalTwinModel:
         Ths = 2.0
         Gv = 0.09
         Thv = 1.5
+        Grs = 0.45             # Baroreceptor gain resistance
+        Trs = 6                     # Time constant for the resistance response to baroreceptor stimulation
 
         sFh = Gh * (np.log(self.Fes_delayed[0] - 2.65 + 1) - 1.1)
         sFv = Gv * (self.Fev_delayed[0] - 4.66)
+        sFr = Grs * (np.log(self.Fes_delayed[-int(2/self.dt)]-2.65+1)-1.1)
 
         ddHRv = (sFv - dHRv) / Thv
         ddHRh = (sFh - dHRh) / Ths
+        ddRs =  (sFr - dRs)/Trs
 
-        return dPbarodt, ddHRv, ddHRh
+        return dPbarodt, ddHRv, ddHRh, ddRs
 
     ## Start-stop calls
-
     def start_simulation(self):
-        """Solve the ODEs and compute variables after integration."""
+        """Main simulation loop: integrates ODEs, processes events, and streams average data."""
         self.running = True
-        last_print_time = self.t  # Track last print time
-        last_emit_time = self.t  # Track last emit time
+        last_print_time = self.t
+        last_emit_time = self.t
+
+        def _avg(buf, fallback):
+            return np.mean(buf) if len(buf) > 0 else fallback
 
         while self.running:
-
-            
-            # Define time span for the current step
+            # Integrate ODEs
             t_span = [self.t, self.t + self.dt]
-            t_eval = [self.t + self.dt]  # Evaluate at the end of dt
+            t_eval = [self.t + self.dt]
 
-            ## Starting computations, variables emitted - Check for disease progression
-            for processedEvent in self.events:
-                outcome = self.processEvent(processedEvent)
-                if outcome is False:
-                    self.events.remove(processedEvent)  # Remove the event after processing, else keep it
+            # Process events
+            for processedEvent in list(self.events):
+                if not self.processEvent(processedEvent):
+                    self.events.remove(processedEvent)
 
+            sol = solve_ivp(
+                self.extended_state_space_equations,
+                t_span,
+                self.current_state,
+                t_eval=t_eval,
+                method='LSODA',
+                rtol=1e-6,
+                atol=1e-6
+            )
+            self.current_state = sol.y[:, -1]
 
-            sol = solve_ivp(self.extended_state_space_equations, t_span, self.current_state, t_eval=t_eval, method='LSODA', rtol=1e-6, atol=1e-6)
-            self.current_state = sol.y[:, -1]  # Update state to the latest solution
-
-            # Compute variables at the latest time point
+            # Compute physiological variables
             P, F, HR, Sa_O2, RR = self.compute_variables(sol.t[-1], self.current_state)
-            self.current_heart_rate = self.HR  # Update monitored value
-            self.current_SaO2 = Sa_O2  # Update monitored value
-        
-            self.current_RR = RR  # Update monitored value
+            self.current_heart_rate = self.HR
+            self.current_SaO2 = Sa_O2
+            self.current_RR = RR
 
-            # Update buffer index
-            self.P_store[:, self.buffer_index] = P[0]
-            self.F_store[:, self.buffer_index] = F
-            self.HR_store[self.buffer_index] = HR
-            self.buffer_index = (self.buffer_index + 1) % 2000
+            # Store full-resolution waveform values
+            self.P_store.append(P[0])
+            self.HR_store.append(HR)
 
+            # Store 1-second trend buffers
+            self.avg_buffers["HR"].append(HR)
+            self.avg_buffers["SaO2"].append(Sa_O2)
+            self.avg_buffers["RR"].append(RR)
+            self.avg_buffers["MAP"].append(P[0])
+            self.avg_buffers["etCO2"].append(self.current_state[17])
 
+            # Estimate filtered MAP
+            if len(self.P_store) == self.window_size:
+                self.recent_MAP = self.compute_filtered_map(np.array(self.P_store))
+            else:
+                self.recent_MAP = np.mean(self.P_store) if len(self.P_store) > 0 else None
 
+            if self.recent_MAP is None:
+                self.recent_MAP = self.master_parameters['cardio_control_params.ABP_n']['value']
 
-
- 
-
-            # Emit data to the client every 1 seconds = output_frequency
+            # Emit average data every output_frequency seconds
             if self.t - last_emit_time >= self.output_frequency:
-                data = {'time': self.start_timestamp + timedelta(seconds=np.round(self.t)),  ## Round timestep to the second
-                        'values':{
-                            "heart_rate": np.round(self.current_heart_rate, 2),
-                            "SaO2": np.round(self.current_SaO2, 2),
-                            "MAP": np.round(self.recent_MAP, 2),
-                            "SAP": np.round(self.recent_MAP+30, 2), ## CHECK LEX
-                            "DAP": np.round(self.recent_MAP-15, 2), ## CHECK LEX
-                            "RR": np.round(self.RR, 2),
-                            "etCO2": np.round(self.current_state[17], 2)
-                    } }
-                
-                ## Send data to the client
-                self.redisClient.add_vital_sign(self.patient_id, data)
+                avg_data = {
+                    'time': self.start_timestamp + timedelta(seconds=np.round(self.t)),
+                    'values': {
+                        "heart_rate": np.round(_avg(self.avg_buffers["HR"], self.HR), 2),
+                        "SaO2": np.round(_avg(self.avg_buffers["SaO2"], 97), 2),
+                        "MAP": np.round(_avg(self.avg_buffers["MAP"], self.recent_MAP), 2),
+                        "SAP": np.round(_avg(self.avg_buffers["MAP"], self.recent_MAP) + 30, 2),
+                        "DAP": np.round(_avg(self.avg_buffers["MAP"], self.recent_MAP) - 15, 2),
+                        "RR": np.round(_avg(self.avg_buffers["RR"], self.RR), 2),
+                        "etCO2": np.round(_avg(self.avg_buffers["etCO2"], self.current_state[17]), 2)
+                    }
+                }
 
-                ## Save latest data as epoch: Keep n data points for callback purposes
-                if len(self.data_epoch) == 0:
-                    self.data_epoch = [data]
-                else: 
-                    self.data_epoch.append(data)
-                    self.data_epoch = self.data_epoch[ -self.data_points:] # Keep last N data points
+                self.redisClient.add_vital_sign(self.patient_id, avg_data)
 
-                ## Send the data to the Alarm-module 
-                self.alarmModule.evaluate_data(curr_data = data, historic_data = self.data_epoch)
+                if not isinstance(self.data_epoch, list):
+                    self.data_epoch = []
+
+                self.data_epoch.append(avg_data)
+                self.data_epoch = self.data_epoch[-self.data_points:]
+
+                self.alarmModule.evaluate_data(curr_data=avg_data, historic_data=self.data_epoch)
                 last_emit_time = self.t
-
-            # Print the current state every 5 seconds
+                #print(avg_data)
+            # Periodic logging (optional)
             if self.t - last_print_time >= 5:
-                #print(f"Patient {self.patient_id} - Time: {self.t:.2f}, HR: {HR:.2f}, SaO2: {Sa_O2:.2f}, MAP: {self.recent_MAP:.2f}")
-                # and print the cardiac parameters
-                #print(self.master_parameters['cardio_parameters.elastance.max.9.V_D']['value'])
                 last_print_time = self.t
 
-            # Update simulation time and pause
+            # Advance time
             self.t += self.dt
             if self.sleep:
-                time.sleep(self.dt)  # Control simulation speed
+                time.sleep(self.dt)
 
     def addProcessedEvent(self, event):
         """Add a processed event to the event queue."""
         if event:
             self.events.append(event)
             print(f"Event added for patient {self.patient_id}: {event['eventType']}")
-
     def processEvent(self, eventContent):
         outcome = None
         error = None
+        parameters_changed_by_event = [] # Keep track of parameters changed
+        ode_parameters_changed = False # Flag to check if ODE specific parameters changed
+        respi_constants_changed = False # NEW: Flag for respiratory constant changes
         
         ##print(f"Started processing: {eventContent}")
         """Process an event and update the model parameters."""
@@ -835,7 +885,7 @@ class DigitalTwinModel:
                 lastEmissionTime = eventContent["lastEmission"] if eventContent["lastEmission"] else 0
                 if self.t - lastEmissionTime <= int(timedelta(**{eventContent["timeUnit"]: eventContent["timeInterval"]}).total_seconds()):
                     ## Not enough time has passed: Break early
-                    return
+                    return outcome # Return outcome directly
                 else:
                     ## Enough time has passed: Update last emission time
                     eventContent["lastEmission"] = self.t
@@ -847,6 +897,7 @@ class DigitalTwinModel:
             for paramChange in eventContent['parameters']:
                 paramName = paramChange['name']
                 paramValChange = paramChange['value']
+                newValue = None # Initialize newValue
                 ## paramValChange is in percentages compared to [-100 | 100]
                 if paramName in self.master_parameters:
                     ## A] Type = 'relative' -> convert current value to a percentage - add percentage and recalculate
@@ -862,31 +913,46 @@ class DigitalTwinModel:
                         elif paramChange['action'] == 'set':
                             currPercent = paramValChange
                         else:
-                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+                            error = f"Error: Unknown action {paramChange['action']} for parameter {paramName} in patient {self.patient_id}"
+                            break # break from inner loop
 
                         ## get the actual value for the parameter in non-percentualness
                         splineFunction = self.pathologies.splineFunctions[paramName]
                         newValue = splineFunction(currPercent)
                         ## Update the parameter in the model
                         self.master_parameters[paramName]['value'] = newValue
+                        parameters_changed_by_event.append(paramName)
                         print(f" === EVENT ACTION: param {paramName} updated to {self.master_parameters[paramName]['value']} ===")
+                        if paramName.startswith(('cardio_control_params.', 'respiratory_control_params.', 'gas_exchange_params.', 'bloodflows.', 'misc_constants.', 'params.')):
+                            ode_parameters_changed = True
+                        if paramName.startswith('respi_constants.'):
+                            respi_constants_changed = True
 
                     ## B] Type = 'absolute' -> set directly, no inference of spline
                     elif paramChange['type'] == 'absolute':
                         if paramChange['action'] == 'decay':
                             ## decay the parameter
                             self.master_parameters[paramName]['value'] += paramChange['value']
+                            newValue = self.master_parameters[paramName]['value']
                         elif paramChange['action'] == 'set':
                             ## set parameter direcly
                             self.master_parameters[paramName]['value'] = paramChange['value']
+                            newValue = self.master_parameters[paramName]['value']
                         else:
-                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+                            error = f"Error: Unknown action {paramChange['action']} for parameter {paramName} in patient {self.patient_id}"
+                            break # break from inner loop
+                        parameters_changed_by_event.append(paramName)
+                        if paramName.startswith(('cardio_control_params.', 'respiratory_control_params.', 'gas_exchange_params.', 'bloodflows.', 'misc_constants.', 'params.')):
+                            ode_parameters_changed = True
+                        if paramName.startswith('respi_constants.'):
+                            respi_constants_changed = True
                     else:
-                        error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
-                        return False
+                        error = f"Error: Unknown type {paramChange['type']} for parameter {paramName} in patient {self.patient_id}"
+                        break # break from inner loop
                 
                 else:
                     ## Parameter not in the master-parameters file, try manual CASE-MATCH
+                    paramNameNew = None # Initialize to avoid UnboundLocalError
                     match paramName:
                         case "venous_compartiment_3":
                             paramNameNew = "self.current_state[3]"
@@ -894,24 +960,54 @@ class DigitalTwinModel:
 
                     if not paramNameNew:
                         error = f"Error: Unknown parameter {paramName} in patient {self.patient_id}"
-                        return False
+                        break # break from inner loop
                     ## access the variable through the eval function
-                    paramVariable = eval(paramNameNew)
-                    print(f"+++ ParamChange = {paramChange} +++")
+                    paramVariable = eval(paramNameNew) # Be cautious with eval
+                    #print(f"+++ ParamChange = {paramChange} +++")
                     if paramChange['type'] == 'absolute':
                         if paramChange['action'] == 'decay':
-                            ## decay the parameter
-                            print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
-                            paramVariable += paramValChange ## decay goes both ways: in- and decrease facilitated
+                            paramVariable += paramValChange
+                            exec(f"{paramNameNew} = {paramVariable}") # Be cautious with exec
+                            #print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
                         elif paramChange['action'] == 'set':
                             paramVariable = paramValChange 
-                            print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
-
+                            exec(f"{paramNameNew} = {paramVariable}") # Be cautious with exec
+                            #print(f" === EVENT ACTION: param {paramName} updated to {paramVariable} ===")
                         else:
-                            error = f"Error: Unknown action {paramChange} for parameter {paramName} in patient {self.patient_id}"
+                            error = f"Error: Unknown action {paramChange['action']} for parameter {paramName} in patient {self.patient_id}"
+                            break # break from inner loop
+                    else:
+                        error = f"Error: Unknown type {paramChange['type']} for parameter {paramName} in patient {self.patient_id}"
+                        break # break from inner loop
             
-            ## recalculate cardiac elastances, resistance and uVolme
-            self.compute_cardiac_parameters()
+            if error: # If an error occurred in the loop
+                print(error) # Or handle error more robustly
+                return False # Indicate event processing failed or should be removed
+
+            # If baroreflex parameters were changed by an event, re-cache them
+            if any(p_name.startswith('baroreflex_params.') or p_name == 'cardio_control_params.ABP_n' for p_name in parameters_changed_by_event):
+                self._cache_baroreflex_parameters()
+                print("Re-cached baroreflex parameters due to event.")
+
+            # If respiratory constants changed, rebuild mechanical matrices and ensure ODE cache is updated
+            if respi_constants_changed:
+                self._setup_simulation_environment() # Rebuild A_mechanical, B_mechanical, etc.
+                print("Re-initialized simulation environment (mechanical matrices, etc.) due to respi_constants change.")
+                ode_parameters_changed = True # Ensure ODE parameters (which include some respi_constants) are re-cached
+
+            # If ODE parameters were changed by an event (or implied by respi_constants change), re-cache them
+            if ode_parameters_changed:
+                self._cache_ode_parameters()
+                print("Re-cached ODE parameters due to event.")
+
+            ## recalculate cardiac elastances, resistance and uVolme if relevant parameters changed
+            # This check can be made more specific if needed.
+            # Note: compute_cardiac_parameters() updates self.elastance, self.resistance, self.uvolume.
+            # If self.uvolume changes, self.initialize_state() might need to be called if initial volumes depend on it,
+            # but that's a larger reset not currently handled here.
+            if any(p_name.startswith('cardio.') for p_name in parameters_changed_by_event): # A more specific check for cardiac parameters
+                self.compute_cardiac_parameters()
+                print("Re-computed cardiac parameters due to event.")
         
         elif eventContent["eventType"] == "special": 
             ## Custom-made function for special events
@@ -919,11 +1015,8 @@ class DigitalTwinModel:
             print(f"Special events not yet incorporated, removing from list")
             ## to be filled later!
 
-        if error:
-             return error 
-        else: 
-            return outcome ## True = event can stay for next iteration, False = event to be deleted
-            
+        return outcome 
+     
     def stop_simulation(self):
         """Stop the simulation loop."""
         if self.running:
