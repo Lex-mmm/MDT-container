@@ -12,7 +12,7 @@ from Events.Pathologies.pathology import Pathology
 from Events.Therapy.therapies import Therapy
 
 class DigitalTwinModel:
-    def __init__(self, patient_id, param_file="healthyFlat.json", 
+    def __init__(self, patient_id, param_file="healthyFlat", 
                  data_callback=None, 
                  sleep=True,
                  time_step=0.02):  # time_step argument will be effectively overridden by parameters
@@ -58,10 +58,11 @@ class DigitalTwinModel:
         self.dt = self.master_parameters['misc_constants.T']['value']
         self.window_size = int(30 / self.dt)  # 30 seconds window
         self.P_buffer = deque([0.0] * self.window_size, maxlen=self.window_size)
-
+        
     def _initialize_simulation_environment(self):
         """Initialize the simulation environment."""
         self._cache_baroreflex_parameters()
+        self._cache_chemoreceptor_parameters()
         self._compute_all_derived_params()
         self.compute_cardiac_parameters()
         self._cache_ode_parameters()
@@ -72,6 +73,13 @@ class DigitalTwinModel:
         self.AF = 0  # Atrial Fibrillation flag
         self.Fes_delayed = [2.66] * int(2 / self.dt)
         self.Fev_delayed = [4.66] * int(0.2 / self.dt)
+        
+        # Chemoreceptor delayed buffers
+        self.p_CO2_delayed = [40.0] * int(self._chemo_delay_CO2 / self.dt)
+        self.p_O2_delayed = [100.0] * int(self._chemo_delay_O2 / self.dt)
+        
+        # Simple cycle tracking
+        self.last_cycle_start = 0.0  # Track when last cycle started
 
     def _cache_baroreflex_parameters(self):
         """Cache parameters used frequently in baroreceptor_control for speed."""
@@ -90,6 +98,19 @@ class DigitalTwinModel:
         self._baro_Kev = self.master_parameters['baroreflex_params.Kev']['value']
         self._baro_Fas_0 = self.master_parameters['baroreflex_params.Fas_0']['value']
 
+    def _cache_chemoreceptor_parameters(self):
+        """Cache parameters used frequently in chemoreceptor_control for speed."""
+        # CO2 chemoreceptor parameters - REDUCED GAINS
+        self._chemo_tau_CO2 = self.master_parameters.get('chemoreceptor_params.tau_CO2', {'value': 8.0})['value']  # Increased time constant
+        self._chemo_G_CO2 = self.master_parameters.get('chemoreceptor_params.G_CO2', {'value': 0.05})['value']  # Reduced from 0.20 to 0.05
+        self._chemo_p_CO2_set = self.master_parameters.get('chemoreceptor_params.p_CO2_set', {'value': 40.0})['value']
+        self._chemo_delay_CO2 = self.master_parameters.get('chemoreceptor_params.delay_CO2', {'value': 2.0})['value']  # Increased delay
+        
+        # O2 chemoreceptor parameters - REDUCED GAINS  
+        self._chemo_tau_O2 = self.master_parameters.get('chemoreceptor_params.tau_O2', {'value': 6.0})['value']  # Increased time constant
+        self._chemo_G_O2 = self.master_parameters.get('chemoreceptor_params.G_O2', {'value': -0.3})['value']  # Reduced from -1.5 to -0.3
+        self._chemo_p_O2_threshold = self.master_parameters.get('chemoreceptor_params.p_O2_threshold', {'value': 105.0})['value']
+        self._chemo_delay_O2 = self.master_parameters.get('chemoreceptor_params.delay_O2', {'value': 1.0})['value']  # Increased delay
 
     def _cache_ode_parameters(self):
         """Cache parameters used frequently in extended_state_space_equations for speed."""
@@ -97,8 +118,12 @@ class DigitalTwinModel:
         self._ode_HR_n_max = self.master_parameters['cardio_control_params.HR_n']['max']
         self._ode_HR_n_min = self.master_parameters['cardio_control_params.HR_n']['min']
         self._ode_R_n = self.master_parameters['cardio_control_params.R_n']['value']
+        self._ode_R_n_max = self.master_parameters['cardio_control_params.R_n']['max']
+        self._ode_R_n_min = self.master_parameters['cardio_control_params.R_n']['min']
         self._ode_UV_n = self.master_parameters['cardio_control_params.UV_n']['value']
         self._ode_RR0 = self.master_parameters['respiratory_control_params.RR_0']['value']
+        self._ode_RR0_max = self.master_parameters['respiratory_control_params.RR_0']['max']
+        self._ode_RR0_min = self.master_parameters['respiratory_control_params.RR_0']['min']
         self._ode_FI_O2 = self.master_parameters['gas_exchange_params.FI_O2']['value']
         self._ode_FI_CO2 = self.master_parameters['gas_exchange_params.FI_CO2']['value']
         self._ode_CO_nom = self.master_parameters['bloodflows.CO']['value']
@@ -329,7 +354,7 @@ class DigitalTwinModel:
     def initialize_state(self):
         """Set initial state variables based on loaded parameters."""
         # Initialize state variables for the combined model
-        state = np.zeros(33)  # Adjust the size if needed
+        state = np.zeros(35)  # Increased from 33 to accommodate new chemoreceptor states
         # Initialize blood volumes based on unstressed volumes
         TBV = self.master_parameters['misc_constants.TBV']['value']
         state[:10] = TBV * (self.uvolume / np.sum(self.uvolume)) 
@@ -358,6 +383,8 @@ class DigitalTwinModel:
         state[30] = 0     # dHRv
         state[31] = 0     # dHRh
         state[32] = 0     # dRs
+        state[33] = 0     # dRR_chemo (chemoreceptor respiratory rate control)
+        state[34] = 0     # dPmus_chemo (chemoreceptor Pmus control)
         return state
 
     def update_heart_period(self, HR):
@@ -368,16 +395,27 @@ class DigitalTwinModel:
         self.Tav = 0.01
         self.Tvs = 0.16 + 0.2 * self.HP
 
+    def is_cycle_complete(self, t):
+        """Check if current cardiac cycle is complete."""
+        return (t - self.last_cycle_start) >= self.HP
+
     def calculate_elastances(self, t):
         """Calculate heart elastances based on the current phase in the heart cycle."""
+        # Check if cycle is complete and update timing if needed
+        if self.is_cycle_complete(t):
+            self.last_cycle_start = t
+        
+        # Time since start of current cycle
+        cycle_time = t - self.last_cycle_start
+        
         # Heart period and timing parameters
-        HP = self.HP           # Total heart period (seconds)
-        Tas = self.Tas         # Duration of activation (systolic phase)
-        Tav = self.Tav         # Ventricular isovolumetric relaxation time (not used in activation)
-        Tvs = self.Tvs         # Duration of ventricular activation (systolic contraction phase)
+        HP = self.HP           
+        Tas = self.Tas         
+        Tav = self.Tav         
+        Tvs = self.Tvs         
         
         # Normalize current time within the heart period to a fraction (0 to 1)
-        phase_fraction = (t % HP) / HP
+        phase_fraction = cycle_time / HP
 
         # Calculate activation function for contraction (aaf) during the early phase
         if phase_fraction <= Tas / HP:
@@ -515,8 +553,8 @@ class DigitalTwinModel:
         Δ_RR_c, Δ_Pmus_c = x[23], x[24]
         Pmus = x[25]
         Δ_HR_c, Δ_R_c, Δ_UV_c = x[26], x[27], x[28]
-        Pbarodt, dHRv, dHRs, dRs  = x[29], x[30], x[31], x[32]
-
+        Pbarodt, dHRv, dHRs, dRs = x[29], x[30], x[31], x[32]
+        dRR_chemo, dPmus_chemo = x[33], x[34]  # New chemoreceptor states
 
         # ── 2) Pull “setpoint” parameters ─────────────────────────────────────────
         HR_n    = self._ode_HR_n
@@ -533,23 +571,34 @@ class DigitalTwinModel:
         #HP = 60 / HR + dHRv + dHRh
         #HR = 60 / HP  # update HR for output tracking or logging if needed
 
+        # Calculate desired HR from baroreflex and central control
         HR = 60/(60/HR_n + dHRv + dHRs) if self.use_reflex == True else HR_n
-        R_c = R_n + dRs if self.use_reflex == True else 1
-        #R_c=1
-        #R_c = R_n # - Δ_R_c
-        UV_c = UV_n #+ Δ_UV_c
-        RR  = RR0  #+ Δ_RR_c
-        #print(f"R_c: {R_c}, dRs: {dRs}")  
-        # Cap HR to non-pathological range
+        #R_c = R_n + dRs if self.use_reflex == True else 1 
+        R_c=1
+        UV_c = UV_n
+        # Apply chemoreceptor control to respiratory parameters
+        RR = RR0 + dRR_chemo if self.use_reflex else RR0
+
+        if RR < self._ode_RR0_min:
+            RR = self._ode_RR0_min
+        elif RR > self._ode_RR0_max:
+            RR = self._ode_RR0_max
+        #print(dRR_chemo)
+
+        # Cap HR to physiological range
         if HR > self._ode_HR_n_max and self.AF == 0:
-            # If AF is not present, cap HR to max
             HR = 200
         elif HR < self._ode_HR_n_min and self.AF == 0:
             HR = 30
 
-        # Update heart/respiratory rates
+        # Only update heart period if cardiac cycle is complete
+        if self.is_cycle_complete(t):
+            self.update_heart_period(HR)
+        
+
+        
+        # Update respiratory rate (can change immediately)
         self.HR, self.RR = HR, RR
-        self.update_heart_period(HR)
 
         # ── 3) Ventilator vs. Spontaneous Breathing ───────────────────────────────
         if MV_mode == 0:
@@ -558,6 +607,7 @@ class DigitalTwinModel:
             Pmus_min = (
                 self._ode_Pmus_0
                 + Δ_Pmus_c
+                + dPmus_chemo  # Add chemoreceptor contribution
             )
             _, Pmus_dt = self.input_function(t, RR, Pmus_min)
         else:
@@ -608,11 +658,18 @@ class DigitalTwinModel:
         # ── 7) Chemo‐ & Baroreflex updates via one call ──────────────────────────
 
         #print(P[0], F[0], self.elastance[0,0], Pbarodt, dHRv, dHRs, dRs)
-        # Then in your extended_state_space_equations method:
+        # Baroreflex control
         if self.use_reflex== True:
-            dPbarodt, ddHRv, ddHRs,ddRs = self.baroreceptor_control(P[0], dVdt[0], self.elastance[0,0], Pbarodt, dHRv, dHRs, dRs)
+            dPbarodt, ddHRv, ddHRs, ddRs = self.baroreceptor_control(P[0], dVdt[0], self.elastance[0,0], Pbarodt, dHRv, dHRs, dRs)
         else:
-            dPbarodt, ddHRv, ddHRs,ddRs = 0, 0, 0, 0
+            dPbarodt, ddHRv, ddHRs, ddRs = 0, 0, 0, 0
+            
+        # Chemoreceptor control
+        if self.use_reflex == True:
+            ddRR_chemo, ddPmus_chemo = self.chemoreceptor_control(p_a_CO2, p_a_O2, dRR_chemo, dPmus_chemo)
+        else:
+            ddRR_chemo, ddPmus_chemo = 0, 0
+
         # ── 9) Lung mechanics ─────────────────────────────────────────────────────
         R_lt = self._ode_R_lt
         C_cw = self.C_cw
@@ -704,12 +761,12 @@ class DigitalTwinModel:
                 0, 0,
                 Pmus_dt,
                 0, 0, 0,
-                dPbarodt, ddHRv, ddHRs,ddRs  # NEW
+                dPbarodt, ddHRv, ddHRs, ddRs,  # Baroreflex states
+                ddRR_chemo, ddPmus_chemo        # NEW: Chemoreceptor states
             ]
         ])
 
         return dxdt
-    
 
     def _update_pressure_buffer(self, new_pressure):
         """Efficiently update the pressure buffer."""
@@ -772,6 +829,46 @@ class DigitalTwinModel:
 
         return dPbarodt, ddHRv, ddHRh, ddRs
 
+    def chemoreceptor_control(self, p_a_CO2, p_a_O2, dRR_chemo, dPmus_chemo):
+        """
+        Chemoreceptor control for respiratory rate and muscle pressure.
+        Similar structure to baroreceptor_control but for respiratory variables.
+        """
+        # Update delayed buffers
+        self.p_CO2_delayed.append(p_a_CO2)
+        self.p_O2_delayed.append(p_a_O2)
+        
+        if len(self.p_CO2_delayed) > int(self._chemo_delay_CO2 / self.dt):
+            self.p_CO2_delayed.pop(0)
+        if len(self.p_O2_delayed) > int(self._chemo_delay_O2 / self.dt):
+            self.p_O2_delayed.pop(0)
+        
+        #print(p_a_CO2, p_a_O2)
+        # Get delayed values
+        p_CO2_delayed = self.p_CO2_delayed[0]
+        p_O2_delayed = self.p_O2_delayed[0]
+        
+        # CO2 chemoreceptor response (primary driver) - REDUCED SENSITIVITY
+        CO2_error = p_CO2_delayed - self._chemo_p_CO2_set
+        RR_drive_CO2 = self._chemo_G_CO2 * CO2_error * 0.5  # Additional 50% reduction
+        
+        # O2 chemoreceptor response (only active below threshold) - REDUCED SENSITIVITY
+        if p_O2_delayed < self._chemo_p_O2_threshold:
+            O2_error = self._chemo_p_O2_threshold - p_O2_delayed
+            RR_drive_O2 = self._chemo_G_O2 * O2_error * -1 * 0.3  # Additional 70% reduction
+        else:
+            RR_drive_O2 = 0.0
+        
+        # Combined respiratory drive - FURTHER DAMPED
+        total_RR_drive = RR_drive_CO2 + RR_drive_O2
+        total_Pmus_drive = RR_drive_CO2 * 0.2 + RR_drive_O2 * 0.1  # Reduced Pmus scaling
+        
+        # First-order dynamics for chemoreceptor responses
+        ddRR_chemo = (total_RR_drive - dRR_chemo) / self._chemo_tau_CO2
+        ddPmus_chemo = (total_Pmus_drive - dPmus_chemo) / self._chemo_tau_O2
+        
+        return ddRR_chemo, ddPmus_chemo
+
     ## Start-stop calls
     def start_simulation(self):
         """Main simulation loop: integrates ODEs, processes events, and streams average data."""
@@ -805,9 +902,12 @@ class DigitalTwinModel:
 
             # Compute physiological variables
             P, F, HR, Sa_O2, RR = self.compute_variables(sol.t[-1], self.current_state)
+           #print(Sa_O2)
             self.current_heart_rate = self.HR
             self.current_SaO2 = Sa_O2
-            self.current_RR = RR
+            self.current_RR = self.RR
+
+            self.current_ABP_1 = P[0]  # Link current_ABP_1 to P[3] (venous pressure compartment 3)
 
             # Store full-resolution waveform values
             self.P_store.append(P[0])
@@ -818,6 +918,7 @@ class DigitalTwinModel:
             self.avg_buffers["SaO2"].append(Sa_O2)
             self.avg_buffers["RR"].append(RR)
             self.avg_buffers["MAP"].append(P[0])
+            #self.avg_buffers["MAP"].append(self.current_state[0])
             self.avg_buffers["etCO2"].append(self.current_state[17])
 
             # Estimate filtered MAP
@@ -988,12 +1089,11 @@ class DigitalTwinModel:
             if any(p_name.startswith('baroreflex_params.') or p_name == 'cardio_control_params.ABP_n' for p_name in parameters_changed_by_event):
                 self._cache_baroreflex_parameters()
                 print("Re-cached baroreflex parameters due to event.")
-
-            # If respiratory constants changed, rebuild mechanical matrices and ensure ODE cache is updated
-            if respi_constants_changed:
-                self._setup_simulation_environment() # Rebuild A_mechanical, B_mechanical, etc.
-                print("Re-initialized simulation environment (mechanical matrices, etc.) due to respi_constants change.")
-                ode_parameters_changed = True # Ensure ODE parameters (which include some respi_constants) are re-cached
+                
+            # If chemoreceptor parameters were changed by an event, re-cache them
+            if any(p_name.startswith('chemoreceptor_params.') for p_name in parameters_changed_by_event):
+                self._cache_chemoreceptor_parameters()
+                print("Re-cached chemoreceptor parameters due to event.")
 
             # If ODE parameters were changed by an event (or implied by respi_constants change), re-cache them
             if ode_parameters_changed:
