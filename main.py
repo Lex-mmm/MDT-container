@@ -4,6 +4,7 @@ import json
 import time
 import calendar
 import threading
+import os
 from digital_twin_model import DigitalTwinModel  # Import your updated class
 from redis import Redis
 from Comms.redisClient import RedisInit
@@ -22,13 +23,24 @@ class Patient:
     def __init__(self, patient_id, param_file="parameters.json", pat_char=None, sleep=True):
 
         ## Initialize starting instance variables
-        self.patient_id = random.randint(1000, 9999) ## random patient ID
+        # Always generate random numeric patient ID (ignore provided string IDs)
+        self.patient_id = str(random.randint(1000, 9999))
         self.param_file = param_file
         self.running = False ## start right away
         self.data_epoch = []
         ## redis client for communication
         self.redisClient = RedisInit()
-        self.redisClient.redis.flushdb() ## clear the database for testing purposes
+        # REMOVED: self.redisClient.redis.flushdb() - This was clearing ALL patients from Redis!
+        # Only clear this specific patient's data if needed for restart
+        try:
+            # Clean up any existing data for THIS patient only
+            existing_keys = self.redisClient.redis.keys(f"*{self.patient_id}*")
+            if existing_keys:
+                self.redisClient.redis.delete(*existing_keys)
+                print(f"Cleaned up existing data for patient {self.patient_id}")
+        except Exception as e:
+            print(f"Note: Could not clean existing patient data: {e}")
+        
         ## re-initialize the redis client
         self.redisClient = RedisInit()
         self.ingestDemographics()
@@ -40,8 +52,19 @@ class Patient:
         
     def ingestDemographics(self):
         ## Ingest patient demographics into Redis
-        first_name = random.choice(['Erik', 'Lex', 'Teus','Jan', 'Piet', 'Kees', 'Henk'])
-        last_name = random.choice(['Loon, van', 'Kappen', 'Koomen', 'Klein', 'Linden, van der'])
+        # Use custom name if provided via environment, otherwise random
+        patient_name = os.environ.get('PATIENT_NAME', '').strip()
+        
+        if patient_name and ' ' in patient_name:
+            name_parts = patient_name.split(' ', 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1]
+        elif patient_name:
+            first_name = patient_name
+            last_name = random.choice(['Loon, van', 'Kappen', 'Koomen', 'Klein', 'Linden, van der'])
+        else:
+            first_name = random.choice(['Erik', 'Lex', 'Teus','Jan', 'Piet', 'Kees', 'Henk'])
+            last_name = random.choice(['Loon, van', 'Kappen', 'Koomen', 'Klein', 'Linden, van der'])
         gender = random.choice(['M', 'F'])
         dob_year = random.randint(1950, 2000)
         dob_month = random.randint(1, 12)
@@ -56,15 +79,32 @@ class Patient:
             "gender": str(gender)
         }
         ## Ingest into Redis
-        print(f"Patient demographics: {payload}")
-        if not self.redisClient.redis.exists(f"PATIENTS:{self.patient_id}"):
-            #print(f"Creating patient {self.patient_id} in Redis.")
-            self.redisClient.redis.execute_command("JSON.SET", f'PATIENTS:{self.patient_id}', "$", json.dumps(payload))
-            ## Create the index for the patient demographics
-            check = self.redisClient.redis.execute_command(
-                    'FT.SEARCH', 'demographics_index', '*'
-                )
-            print(f"Patient demographics created: {check}")
+        print(f"📝 Patient demographics: {payload}")
+        patient_key = f"PATIENTS:{self.patient_id}"
+        
+        try:
+            if not self.redisClient.redis.exists(patient_key):
+                print(f"✨ Creating new patient {self.patient_id} in Redis")
+                self.redisClient.redis.execute_command("JSON.SET", patient_key, "$", json.dumps(payload))
+                print(f"✅ Patient {self.patient_id} created successfully in Redis")
+            else:
+                print(f"ℹ️  Patient {self.patient_id} already exists in Redis, updating...")
+                self.redisClient.redis.execute_command("JSON.SET", patient_key, "$", json.dumps(payload))
+                print(f"✅ Patient {self.patient_id} updated successfully in Redis")
+                
+            ## Verify the data was stored
+            stored_data = self.redisClient.redis.execute_command("JSON.GET", patient_key)
+            print(f"🔍 Verification - stored data: {stored_data}")
+            
+        except Exception as e:
+            print(f"❌ Error storing patient demographics: {e}")
+            
+        try:
+            ## Check the demographics index
+            check = self.redisClient.redis.execute_command('FT.SEARCH', 'demographics_index', '*')
+            print(f"📋 Demographics index check: {check}")
+        except Exception as e:
+            print(f"⚠️  Could not check demographics index: {e}")
 
 
     def eventListen(self):
@@ -149,22 +189,30 @@ class Patient:
 
 ### START THE SERVER ###
 """Start simulation for a specific patient."""
-## Allow for back-end submission of patient_id and param_file
-patient_id = "Erik"
-param_file = "healthyFlat.json"
-sleep = False
+## Get patient configuration from environment variables
+# Patient ID will be randomly generated by the Patient class
+container_id = os.environ.get('PATIENT_ID', f"Container-{random.randint(1000, 9999)}")  # Used for container tracking
+param_file = os.environ.get('PARAM_FILE', 'healthyFlat.json')
+sleep = os.environ.get('SLEEP', 'false').lower() == 'true'
 
-if patient_id not in twin_instances:
-    # Create a new patient instance
-    twin_instances[patient_id] = Patient(patient_id= patient_id, param_file= param_file, sleep=sleep)
+print(f"🏥 Starting patient container:")
+print(f"   Container ID: {container_id}")
+print(f"   Parameter File: {param_file}")
+print(f"   Patient Name: {os.environ.get('PATIENT_NAME', 'Auto-generated')}")
+print(f"   Sleep Mode: {sleep}")
+
+if container_id not in twin_instances:
+    # Create a new patient instance (patient ID will be randomly generated)
+    twin_instances[container_id] = Patient(patient_id= None, param_file= param_file, sleep=sleep)
 
 
-patient = twin_instances[patient_id]
+patient = twin_instances[container_id]
 if not patient.running:
     # Start the simulation in a new thread
+    print(f"🚀 Starting simulation threads for patient {patient.patient_id} (container: {container_id})")
     threading.Thread(target=patient.startup).start()
     threading.Thread(target=patient.eventListen).start()
-    print(f"Simulation started for patient {patient_id}")
-#    return jsonify({"status": f"Simulation started for patient {patient_id}"})
-#else:
- #   return jsonify({"status": f"Simulation already running for patient {patient_id}"})
+    print(f"✅ Simulation started successfully for patient {patient.patient_id}")
+    print(f"🏥 Patient container is now running and ready for monitoring!")
+else:
+    print(f"ℹ️  Simulation already running for patient {patient.patient_id}")
