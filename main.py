@@ -23,8 +23,14 @@ class Patient:
     def __init__(self, patient_id, param_file="parameters.json", pat_char=None, sleep=True):
 
         ## Initialize starting instance variables
-        # Always generate random numeric patient ID (ignore provided string IDs)
-        self.patient_id = str(random.randint(1000, 9999))
+        # Use provided database ID if available, otherwise generate random ID
+        patient_db_id = os.environ.get('PATIENT_DB_ID')
+        if patient_db_id and patient_db_id.strip():
+            self.patient_id = patient_db_id.strip()
+            print(f"📋 Using provided patient database ID: {self.patient_id}")
+        else:
+            self.patient_id = str(random.randint(1000, 9999))
+            print(f"🎲 Generated random patient ID: {self.patient_id}")
         self.param_file = param_file
         self.running = False ## start right away
         self.data_epoch = []
