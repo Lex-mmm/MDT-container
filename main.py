@@ -115,34 +115,61 @@ class Patient:
 
     def eventListen(self):
         streamKey = f"EVENT:{self.patient_id}"
-        print(f"Listening for events on stream: {streamKey}")
+        print(f"🎧 Listening for events on stream: {streamKey}")
+        
+        # Track the last processed message ID to avoid re-processing
+        last_id = '0'  # Start from beginning only on first read
+        
         ## Create the stream if it doesn't exist
         if not self.redisClient.redis.exists(streamKey):
             self.redisClient.redis.xadd(streamKey, {'init': '1'}, id='*')
-            print(f"Stream {streamKey} created.")
+            print(f"✨ Stream {streamKey} created.")
+        
         while self.running:
-            messages = self.redisClient.redis.xread({streamKey: '0'}, count=1, block=0)
-            if messages:
-                for stream, entries in messages:
-                    for entry in entries:
-                        message_id, message_data = entry  # Unpack the message ID and data
-                        print(f"Stream: {stream}, ID: {message_id}, Data: {message_data}")
-                        
-                        # Process the message data as needed
-                        # Example: Convert JSON string to dictionary
-                        
-                        if message_data == {'init': '1'}:
-                            print("Initialization message received. Ignoring.")
-                            self.redisClient.redis.xdel(streamKey, message_id)  # Delete the message after processing
-
-                            continue
-                        else:
-                            print(f"Processing: {message_data}")
-                            self.processEvent(message_data['event'], message_data['eventSeverity'], message_data['eventType'])
-                            self.redisClient.redis.xdel(streamKey, message_id)  # Delete the message after processing
-            else:
-                print("No new messages. Sleeping for a bit.")
-                time.sleep(5)
+            try:
+                # Read new messages from the last processed ID with blocking
+                # Using block=1000 (1 second) to avoid busy waiting while still being responsive
+                messages = self.redisClient.redis.xread({streamKey: last_id}, count=1, block=1000)
+                
+                if messages:
+                    for stream, entries in messages:
+                        for entry in entries:
+                            message_id, message_data = entry  # Unpack the message ID and data
+                            print(f"📨 Stream: {stream}, ID: {message_id}, Data: {message_data}")
+                            
+                            # Update last processed ID immediately to avoid re-processing
+                            last_id = message_id
+                            
+                            # Process the message data
+                            if message_data == {'init': '1'}:
+                                print("🔧 Initialization message received. Ignoring.")
+                                self.redisClient.redis.xdel(streamKey, message_id)  # Delete the message after processing
+                                continue
+                            else:
+                                print(f"⚡ Processing therapy event: {message_data}")
+                                
+                                # Validate required fields before processing
+                                if 'event' in message_data and 'eventSeverity' in message_data and 'eventType' in message_data:
+                                    self.processEvent(
+                                        message_data['event'], 
+                                        message_data['eventSeverity'], 
+                                        message_data['eventType']
+                                    )
+                                    print(f"✅ Successfully processed {message_data['event']} therapy for patient {self.patient_id}")
+                                else:
+                                    print(f"⚠️  Invalid event data format: {message_data}")
+                                
+                                # Delete the message after successful processing
+                                self.redisClient.redis.xdel(streamKey, message_id)
+                else:
+                    # No new messages within the timeout period - this is normal
+                    # Using shorter sleep since we're already using blocking read
+                    time.sleep(0.1)
+                    
+            except Exception as e:
+                print(f"❌ Error in event listening loop: {e}")
+                # Sleep a bit before retrying to avoid tight error loops
+                time.sleep(1)
 
 
 
@@ -161,20 +188,40 @@ class Patient:
 
     def processEvent(self, event, eventSeverity, eventType=None):
         """Process event for patient consequences."""
-        print(f" ----- PROCESSING EVENT ----- {event} ----- {eventSeverity} ----- {eventType}")
-        if not event or not eventSeverity:
-            return "Missing data: event or eventSeverity"
-        processedEvent = None ## start with empty, fill if needed
-        if eventType == "disease" or eventType == "recovery":
-            processedEvent = self.model.pathologies.processPathology(event, eventSeverity)
-        elif eventType == "treatment":
-            processedEvent = self.model.therapeutic.processTherapeutic(event, eventSeverity)
+        print(f"🔄 ----- PROCESSING EVENT ----- {event} ----- {eventSeverity} ----- {eventType}")
         
-        print(f"Processed event: {processedEvent}")
-        if processedEvent:
-            for event in processedEvent:
-                ## Allow multiple actions to flow from a single event (e.g. starting point + decay)
-                self.model.addProcessedEvent(event)
+        if not event or eventSeverity is None:
+            error_msg = f"❌ Missing data: event={event}, eventSeverity={eventSeverity}"
+            print(error_msg)
+            return error_msg
+            
+        processedEvent = None ## start with empty, fill if needed
+        
+        try:
+            if eventType == "disease" or eventType == "recovery":
+                print(f"🦠 Processing pathology event: {event}")
+                processedEvent = self.model.pathologies.processPathology(event, eventSeverity)
+            elif eventType == "treatment":
+                print(f"💊 Processing therapy treatment: {event} with severity {eventSeverity}")
+                processedEvent = self.model.therapeutic.processTherapeutic(event, eventSeverity)
+            else:
+                print(f"⚠️  Unknown event type: {eventType}")
+                return f"Unknown event type: {eventType}"
+            
+            print(f"🧬 Processed event result: {processedEvent}")
+            
+            if processedEvent:
+                for processed_item in processedEvent:
+                    ## Allow multiple actions to flow from a single event (e.g. starting point + decay)
+                    self.model.addProcessedEvent(processed_item)
+                    print(f"✅ Added processed event to model: {processed_item.get('event', 'unknown')}")
+            else:
+                print(f"⚠️  No processed event returned for {event} (this might be expected for some events)")
+                
+        except Exception as e:
+            error_msg = f"❌ Error processing event {event}: {e}"
+            print(error_msg)
+            return error_msg
 
         ## Single-event-layout:
         # event: {
